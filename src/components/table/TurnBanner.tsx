@@ -9,35 +9,20 @@ interface TurnBannerProps {
 export const TurnBanner: React.FC<TurnBannerProps> = ({
   currentTurnPlayerName,
   isLocalPlayerTurn,
-  lastMoveNotice,
 }) => {
   return (
     <div
       aria-live="polite"
-      className="flex flex-col sm:flex-row items-center gap-2 justify-between bg-slate-900/60 border border-slate-800/80 rounded-lg px-3 py-1.5 text-xs backdrop-blur-sm max-w-xl w-full mx-auto"
+      className="inline-flex items-center gap-2 bg-neutral-900/60 border border-white/[0.08] rounded-full px-3.5 py-1 text-xs backdrop-blur-xl"
     >
-      {/* Current Turn indicator */}
-      <div className="flex items-center gap-2">
-        <span
-          className={`w-2 h-2 rounded-full ${
-            isLocalPlayerTurn ? 'bg-amber-400 animate-ping' : 'bg-slate-500'
-          }`}
-        />
-        <span className="text-slate-300">
-          Turn:{' '}
-          <strong className={isLocalPlayerTurn ? 'text-amber-300 font-black' : 'text-slate-100'}>
-            {isLocalPlayerTurn ? 'Your Turn' : currentTurnPlayerName}
-          </strong>
-        </span>
-      </div>
-
-      {/* Recent event notice */}
-      {lastMoveNotice && (
-        <div className="text-slate-400 text-[11px] truncate max-w-xs sm:max-w-md font-mono">
-          {lastMoveNotice}
-        </div>
-      )}
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${
+          isLocalPlayerTurn ? 'bg-amber-400 animate-pulse' : 'bg-white/30'
+        }`}
+      />
+      <span className={isLocalPlayerTurn ? 'text-amber-300 font-medium' : 'text-white/60'}>
+        {isLocalPlayerTurn ? 'Your Turn' : `${currentTurnPlayerName}'s Turn`}
+      </span>
     </div>
   );
 };
-

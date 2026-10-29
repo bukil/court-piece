@@ -4,7 +4,7 @@ interface ReactionPickerProps {
   onSendReaction: (emoji: string) => void;
 }
 
-const REACTIONS = ['👏', '🔥', '👑', '😮', '🤝', '😂', '🎯', '💔'];
+const REACTIONS = ['👏', '🔥', '👑', '😮', '😂', '🎯'];
 
 export const ReactionPicker: React.FC<ReactionPickerProps> = ({ onSendReaction }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,15 +16,14 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({ onSendReaction }
 
   return (
     <div className="relative inline-flex items-center">
-      {/* Expanded Reaction Buttons */}
       {isOpen && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md animate-fade-in z-40">
+        <div className="absolute bottom-full mb-2 right-0 flex items-center gap-1 p-1 rounded-full bg-neutral-900/90 border border-white/10 shadow-2xl backdrop-blur-2xl animate-fade-in z-40">
           {REACTIONS.map((emoji) => (
             <button
               key={emoji}
               type="button"
               onClick={() => handleSelect(emoji)}
-              className="w-8 h-8 flex items-center justify-center text-lg rounded-xl hover:bg-slate-800 hover:scale-125 active:scale-95 transition-all cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center text-base rounded-full hover:bg-white/10 hover:scale-125 active:scale-95 transition-all cursor-pointer"
             >
               {emoji}
             </button>
@@ -32,17 +31,13 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({ onSendReaction }
         </div>
       )}
 
-      {/* Toggle button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        title="Send live reaction"
-        className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-mono text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95"
+        className="px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-xs text-white/50 hover:text-white transition-all cursor-pointer active:scale-95"
       >
-        <span>💬</span>
-        <span className="hidden sm:inline text-[11px]">React</span>
+        React
       </button>
     </div>
   );
 };
-

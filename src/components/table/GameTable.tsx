@@ -16,23 +16,21 @@ import { Scoreboard } from './Scoreboard';
 import { TurnBanner } from './TurnBanner';
 import { TrumpSelectionModal } from './TrumpSelectionModal';
 import { ReactionPicker } from './ReactionPicker';
-import { Button } from '../common/Button';
-import { Badge } from '../common/Badge';
 
 interface GameTableProps {
   room: RoomDocument;
   localPlayerId: string;
   onLeaveRoom: () => void;
-  onOpenRulesModal: () => void;
+  onOpenRulesModal?: () => void;
 }
 
 export const GameTable: React.FC<GameTableProps> = ({
   room,
   localPlayerId,
   onLeaveRoom,
-  onOpenRulesModal,
 }) => {
   const [hand, setHand] = useState<Card[]>([]);
+  const [initialCards, setInitialCards] = useState<Card[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isMuted, setIsMuted] = useState(soundService.getIsMuted());
   const [isPending, startTransition] = useTransition();
@@ -45,8 +43,11 @@ export const GameTable: React.FC<GameTableProps> = ({
 
   // Subscribe to private hand
   useEffect(() => {
-    const unsubscribe = roomService.subscribePrivateHand(room.id, localPlayerId, (cards) => {
+    const unsubscribe = roomService.subscribePrivateHand(room.id, localPlayerId, (cards, initCards) => {
       setHand(cards);
+      if (initCards && initCards.length > 0) {
+        setInitialCards(initCards);
+      }
     });
     return () => unsubscribe();
   }, [room.id, localPlayerId]);
@@ -108,6 +109,12 @@ export const GameTable: React.FC<GameTableProps> = ({
   const isTrumpCaller = gameState ? gameState.trumpCallerSeatIndex === localSeatIndex : false;
   const trumpCallerPlayer = gameState ? room.seats[gameState.trumpCallerSeatIndex] : null;
 
+  const displayHand = isTrumpSelection
+    ? initialCards.length > 0
+      ? initialCards
+      : hand.slice(0, 5)
+    : hand;
+
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
@@ -139,52 +146,35 @@ export const GameTable: React.FC<GameTableProps> = ({
         soundService.playCardPlay();
         await roomService.playCard(room.id, localPlayerId, card);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to play card.';
+        const msg = err instanceof Error ? err.message : 'Invalid move';
         setActionError(msg);
-        setTimeout(() => setActionError(null), 4000);
+        setTimeout(() => setActionError(null), 3000);
       }
     });
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#0d151c] text-slate-100 flex flex-col justify-between overflow-hidden">
-      {/* Table Background Glow / Felt Accent */}
-      <div className="absolute inset-0 bg-radial from-[#122820]/40 via-[#0d151c] to-[#070b0e] pointer-events-none" />
+    <div className="relative w-full min-h-screen bg-[#07090e] text-white flex flex-col justify-between overflow-hidden">
+      {/* Subtle Table Felt Accent */}
+      <div className="absolute inset-0 bg-radial from-emerald-950/20 via-transparent to-transparent pointer-events-none" />
 
-      {/* Top Header Bar */}
-      <header className="relative z-20 w-full px-3 py-2 sm:px-6 sm:py-3 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md">
+      {/* Floating Top Navigation */}
+      <header className="relative z-20 w-full px-4 py-3 flex items-center justify-between border-b border-white/[0.06] backdrop-blur-2xl">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-emerald-400 font-mono font-black text-lg tracking-wider">CODEBASE</span>
-            <span className="hidden sm:inline-block text-[10px] text-slate-400 font-mono">COURT PIECE</span>
-          </div>
+          <span className="text-sm font-semibold tracking-tight text-white/90">CODEBASE</span>
 
-          {/* Room Code Badge & Copy */}
           <button
             onClick={handleCopyCode}
-            title="Click to copy room code"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-xs font-mono font-bold text-slate-200 transition-colors cursor-pointer"
+            title="Click to copy code"
+            className="text-xs font-mono text-white/40 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
           >
-            <span>ROOM: {room.code}</span>
-            <span className="text-[10px] text-slate-400">
-              {copiedCode ? '✓ Copied' : '📋'}
-            </span>
-          </button>
-
-          {/* Rules info */}
-          <button
-            onClick={onOpenRulesModal}
-            className="hidden md:inline-flex items-center gap-1 cursor-pointer"
-          >
-            <Badge variant="emerald" size="sm">
-              ✓ Single Sir Rules
-            </Badge>
+            {copiedCode ? 'Copied' : room.code}
           </button>
         </div>
 
         {/* Center Scoreboard */}
         {gameState && (
-          <div className="hidden lg:block">
+          <div className="hidden sm:block">
             <Scoreboard
               dealScores={gameState.teamDealScores}
               matchScores={gameState.matchScores}
@@ -197,32 +187,28 @@ export const GameTable: React.FC<GameTableProps> = ({
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-2">
-          {/* Reaction picker */}
           <ReactionPicker onSendReaction={handleSendReaction} />
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={handleToggleMute}
-            aria-label={isMuted ? 'Unmute sound' : 'Mute sound'}
-            title={isMuted ? 'Unmute sound' : 'Mute sound'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
           >
             {isMuted ? '🔇' : '🔊'}
-          </Button>
+          </button>
 
-          <Button
-            variant="secondary"
-            size="sm"
+          <button
             onClick={onLeaveRoom}
+            className="text-xs text-white/40 hover:text-white/80 transition-colors cursor-pointer px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
           >
             Leave
-          </Button>
+          </button>
         </div>
       </header>
 
       {/* Mobile Scoreboard */}
       {gameState && (
-        <div className="lg:hidden flex justify-center py-1.5 px-3 bg-slate-950/40 border-b border-slate-800/50">
+        <div className="sm:hidden flex justify-center py-2 px-3 border-b border-white/[0.04]">
           <Scoreboard
             dealScores={gameState.teamDealScores}
             matchScores={gameState.matchScores}
@@ -235,15 +221,15 @@ export const GameTable: React.FC<GameTableProps> = ({
 
       {/* Action error banner */}
       {actionError && (
-        <div className="relative z-30 mx-auto mt-2 px-4 py-1.5 rounded-lg bg-rose-950/90 border border-rose-500 text-rose-200 text-xs font-semibold shadow-lg">
-          ⚠️ {actionError}
+        <div className="relative z-30 mx-auto mt-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs text-center font-medium">
+          {actionError}
         </div>
       )}
 
-      {/* Main Table Felt Stage */}
-      <main className="relative z-10 flex-1 flex flex-col justify-between items-center px-2 py-2 sm:px-4 max-w-6xl w-full mx-auto">
-        {/* Top: Partner Seat */}
-        <div className="w-full flex justify-center pt-1 sm:pt-2">
+      {/* Main Table Surface */}
+      <main className="relative z-10 flex-1 flex flex-col justify-between items-center px-4 py-2 max-w-5xl w-full mx-auto">
+        {/* Top: Partner */}
+        <div className="w-full flex justify-center pt-2">
           <SeatView
             player={topSeat.player}
             seatIndex={topSeat.seatIndex}
@@ -257,7 +243,7 @@ export const GameTable: React.FC<GameTableProps> = ({
           />
         </div>
 
-        {/* Middle Row: Left Opponent, Central Trick Area, Right Opponent */}
+        {/* Middle: Left, Center Trick, Right */}
         <div className="w-full flex items-center justify-between my-auto py-2">
           {/* Left Opponent */}
           <div className="flex justify-start">
@@ -274,8 +260,8 @@ export const GameTable: React.FC<GameTableProps> = ({
             />
           </div>
 
-          {/* Central Trick Playing Surface */}
-          <div className="flex flex-col items-center justify-center mx-2 sm:mx-6">
+          {/* Central Trick Surface */}
+          <div className="flex flex-col items-center justify-center mx-4">
             {gameState && (
               <TrickArea
                 trick={gameState.currentTrick}
@@ -301,36 +287,31 @@ export const GameTable: React.FC<GameTableProps> = ({
           </div>
         </div>
 
-        {/* Bottom Section: Turn Banner, Local Player Seat, and Interactive Hand */}
-        <div className="w-full flex flex-col items-center">
-          {gameState && (
-            <TurnBanner
-              currentTurnPlayerName={currentTurnPlayer?.nickname || 'Player'}
-              isLocalPlayerTurn={isMyTurn}
-              lastMoveNotice={gameState.lastMoveNotice}
-            />
+        {/* Bottom: Turn Status & Local Hand */}
+        <div className="w-full flex flex-col items-center relative">
+          {/* Floating Reaction for local player */}
+          {activeReactions[bottomSeat.seatIndex] && (
+            <div className="absolute -top-10 z-30 pointer-events-none animate-reaction-float">
+              <div className="px-2.5 py-1 rounded-full bg-neutral-900 border border-white/20 shadow-xl text-2xl backdrop-blur-md">
+                {activeReactions[bottomSeat.seatIndex]}
+              </div>
+            </div>
           )}
 
-          <div className="mt-2 w-full flex flex-col items-center">
-            {/* Small local seat summary */}
-            <div className="mb-1">
-              <SeatView
-                player={bottomSeat.player}
-                seatIndex={bottomSeat.seatIndex}
-                position="bottom"
-                isLocalPlayer={true}
-                isTeammate={false}
-                isTurn={isMyTurn}
-                isDealer={gameState?.dealerSeatIndex === bottomSeat.seatIndex}
-                isCaller={gameState?.trumpCallerSeatIndex === bottomSeat.seatIndex}
-                cardCount={hand.length}
-                activeReaction={activeReactions[bottomSeat.seatIndex]}
+          {gameState && (
+            <div className="mb-2">
+              <TurnBanner
+                currentTurnPlayerName={currentTurnPlayer?.nickname || 'Player'}
+                isLocalPlayerTurn={isMyTurn}
+                lastMoveNotice={gameState.lastMoveNotice}
               />
             </div>
+          )}
 
-            {/* Hand View with interactive cards */}
+          <div className="w-full flex flex-col items-center">
+            {/* Interactive Hand View */}
             <HandView
-              cards={hand}
+              cards={displayHand}
               isMyTurn={isMyTurn && gameState?.status === 'playing'}
               leadSuit={gameState?.currentTrick.leadSuit}
               onPlayCard={handlePlayCard}
@@ -345,7 +326,7 @@ export const GameTable: React.FC<GameTableProps> = ({
         isOpen={isTrumpSelection}
         isCaller={isTrumpCaller}
         callerPlayer={trumpCallerPlayer}
-        callerCards={hand}
+        callerCards={displayHand}
         onSelectTrump={handleSelectTrump}
       />
     </div>

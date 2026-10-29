@@ -14,7 +14,6 @@ import { getStorage } from './storageAdapter';
 const BROADCAST_CHANNEL_NAME = 'codebase_simulator_sync_v2';
 const STORAGE_PREFIX_ROOM = 'codebase_sim_room_';
 const STORAGE_PREFIX_HANDS = 'codebase_sim_hands_';
-const STORAGE_PREFIX_RESERVE = 'codebase_sim_reserve_';
 
 interface BroadcastMessage {
   type: 'ROOM_UPDATED' | 'HAND_UPDATED';
@@ -27,7 +26,7 @@ export class LocalSimulatorService {
   private channel: BroadcastChannel | null = null;
   private storage = getStorage();
   private roomListeners: Map<string, Set<(room: RoomDocument) => void>> = new Map();
-  private handListeners: Map<string, Set<(cards: Card[]) => void>> = new Map();
+  private handListeners: Map<string, Set<(cards: Card[], initialCards?: Card[]) => void>> = new Map();
 
   constructor() {
     if (typeof BroadcastChannel !== 'undefined') {
@@ -99,20 +98,9 @@ export class LocalSimulatorService {
     }
   }
 
-  private saveHandToStorage(roomId: string, playerId: string, cards: Card[]): void {
-    const key = `${STORAGE_PREFIX_HANDS}${roomId}_${playerId}`;
-    this.storage.setItem(key, JSON.stringify(cards));
-    this.broadcast({
-      type: 'HAND_UPDATED',
-      roomId,
-      playerId,
-      timestamp: Date.now(),
-    });
-    this.notifyHandSubscribers(roomId, playerId);
-  }
-
-  private getReserveFromStorage(roomId: string): Card[] {
-    const raw = this.storage.getItem(STORAGE_PREFIX_RESERVE + roomId);
+  private getInitialHandFromStorage(roomId: string, playerId: string): Card[] {
+    const key = `${STORAGE_PREFIX_HANDS}${roomId}_${playerId}_init`;
+    const raw = this.storage.getItem(key);
     if (!raw) return [];
     try {
       return JSON.parse(raw) as Card[];
@@ -121,8 +109,19 @@ export class LocalSimulatorService {
     }
   }
 
-  private saveReserveToStorage(roomId: string, cards: Card[]): void {
-    this.storage.setItem(STORAGE_PREFIX_RESERVE + roomId, JSON.stringify(cards));
+  private saveHandToStorage(roomId: string, playerId: string, cards: Card[], initialCards?: Card[]): void {
+    const key = `${STORAGE_PREFIX_HANDS}${roomId}_${playerId}`;
+    this.storage.setItem(key, JSON.stringify(cards));
+    if (initialCards) {
+      this.storage.setItem(`${key}_init`, JSON.stringify(initialCards));
+    }
+    this.broadcast({
+      type: 'HAND_UPDATED',
+      roomId,
+      playerId,
+      timestamp: Date.now(),
+    });
+    this.notifyHandSubscribers(roomId, playerId);
   }
 
   private broadcast(msg: BroadcastMessage): void {
@@ -146,8 +145,11 @@ export class LocalSimulatorService {
     const key = `${roomId}_${playerId}`;
     const listeners = this.handListeners.get(key);
     if (!listeners || listeners.size === 0) return;
-    const cards = this.getHandFromStorage(roomId, playerId);
-    listeners.forEach((cb) => cb(cards));
+    const room = this.getRoomFromStorage(roomId);
+    const hand = this.getHandFromStorage(roomId, playerId);
+    const initHand = this.getInitialHandFromStorage(roomId, playerId);
+    const cardsToEmit = (room?.status === 'trump_selection' && initHand.length > 0) ? initHand : hand;
+    listeners.forEach((cb) => cb(cardsToEmit, initHand));
   }
 
   public generateRoomCode(): string {
@@ -284,18 +286,16 @@ export class LocalSimulatorService {
     const dealerSeatIndex: SeatIndex = 0;
     const trumpCallerSeatIndex = courtPieceEngine.getTrumpCaller(dealerSeatIndex);
 
-    // Staged Phase 1 dealing (5 cards each)
+    // Staged dealing
     const deck = courtPieceEngine.createDeck();
     const staged = courtPieceEngine.dealInitialFiveCards(deck);
+    const completedDeal = courtPieceEngine.completeRemainingDeal(staged.phase1Hands, staged.remainingDeck);
 
-    // Store private hands for all 4 players (5 cards each)
+    // Store private hands for all 4 players (initial 5 cards + full 13 cards)
     for (let s = 0; s < 4; s++) {
       const seatedPlayer = room.seats[s]!;
-      this.saveHandToStorage(roomId, seatedPlayer.id, staged.phase1Hands[s as SeatIndex]);
+      this.saveHandToStorage(roomId, seatedPlayer.id, completedDeal.fullHands[s as SeatIndex], staged.phase1Hands[s as SeatIndex]);
     }
-
-    // Store remaining 32 cards in server reserve
-    this.saveReserveToStorage(roomId, staged.remainingDeck);
 
     const callerPlayer = room.seats[trumpCallerSeatIndex]!;
 
@@ -319,13 +319,16 @@ export class LocalSimulatorService {
     room.status = 'trump_selection';
     room.gameState = initialGameState;
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   /**
    * Trump selection action:
    * - Validates caller is the trump caller
    * - Records chosen trump suit
-   * - Deals remaining 32 cards (4 each, then 4 each) bringing hands to 13 cards each
    * - Transitions status to 'playing'
    * - Trump caller leads first trick
    */
@@ -342,37 +345,19 @@ export class LocalSimulatorService {
       throw new Error('Only the designated trump caller can choose the trump suit.');
     }
 
-    // Retrieve initial 5-card hands and remaining 32-card deck
-    const initialHands: Record<SeatIndex, Card[]> = {
-      0: this.getHandFromStorage(roomId, room.seats[0]!.id),
-      1: this.getHandFromStorage(roomId, room.seats[1]!.id),
-      2: this.getHandFromStorage(roomId, room.seats[2]!.id),
-      3: this.getHandFromStorage(roomId, room.seats[3]!.id),
-    };
-
-    const remainingDeck = this.getReserveFromStorage(roomId);
-
-    // Complete remaining deal (Stage 2: 4 cards + 4 cards to each player)
-    const completedDeal = courtPieceEngine.completeRemainingDeal(initialHands, remainingDeck);
-
-    // Save 13-card private hands for all 4 players
-    for (let s = 0; s < 4; s++) {
-      const seatedPlayer = room.seats[s]!;
-      this.saveHandToStorage(roomId, seatedPlayer.id, completedDeal.fullHands[s as SeatIndex]);
-    }
-
-    // Clear reserve
-    this.storage.removeItem(STORAGE_PREFIX_RESERVE + roomId);
-
     // Update game state
     room.gameState.trumpSuit = suit;
     room.gameState.status = 'playing';
     room.status = 'playing';
     room.gameState.remainingCardCounts = [13, 13, 13, 13];
     room.gameState.currentTurnSeatIndex = room.gameState.trumpCallerSeatIndex;
-    room.gameState.lastMoveNotice = `${callerSeat.nickname} selected ${suit.toUpperCase()} as Trump! Leading the first trick.`;
+    room.gameState.lastMoveNotice = `${callerSeat.nickname} selected ${suit.toUpperCase()} as Trump.`;
 
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   /**
@@ -465,6 +450,10 @@ export class LocalSimulatorService {
     }
 
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   /**
@@ -490,15 +479,15 @@ export class LocalSimulatorService {
     const nextDealer = courtPieceEngine.getNextDealer(currentDealer, room.gameState.dealWinnerTeamId);
     const nextTrumpCaller = courtPieceEngine.getTrumpCaller(nextDealer);
 
-    // Staged deal: Phase 1 (5 cards each)
+    // Staged deal
     const deck = courtPieceEngine.createDeck();
     const staged = courtPieceEngine.dealInitialFiveCards(deck);
+    const completedDeal = courtPieceEngine.completeRemainingDeal(staged.phase1Hands, staged.remainingDeck);
 
     for (let s = 0; s < 4; s++) {
       const seatedPlayer = room.seats[s]!;
-      this.saveHandToStorage(roomId, seatedPlayer.id, staged.phase1Hands[s as SeatIndex]);
+      this.saveHandToStorage(roomId, seatedPlayer.id, completedDeal.fullHands[s as SeatIndex], staged.phase1Hands[s as SeatIndex]);
     }
-    this.saveReserveToStorage(roomId, staged.remainingDeck);
 
     const callerPlayer = room.seats[nextTrumpCaller]!;
 
@@ -517,6 +506,10 @@ export class LocalSimulatorService {
 
     room.status = 'trump_selection';
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   /**
@@ -533,6 +526,10 @@ export class LocalSimulatorService {
     room.status = 'waiting';
     room.gameState = null;
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
@@ -549,6 +546,10 @@ export class LocalSimulatorService {
       timestamp: Date.now(),
     };
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
@@ -579,6 +580,10 @@ export class LocalSimulatorService {
     }
 
     this.saveRoomToStorage(room);
+    for (let s = 0; s < 4; s++) {
+      const p = room.seats[s];
+      if (p) this.notifyHandSubscribers(roomId, p.id);
+    }
   }
 
   public subscribeRoom(roomId: string, callback: (room: RoomDocument | null) => void): () => void {
@@ -602,20 +607,23 @@ export class LocalSimulatorService {
   public subscribePrivateHand(
     roomId: string,
     playerId: string,
-    callback: (cards: Card[]) => void
+    callback: (cards: Card[], initialCards?: Card[]) => void
   ): () => void {
     const key = `${roomId}_${playerId}`;
     if (!this.handListeners.has(key)) {
       this.handListeners.set(key, new Set());
     }
     const set = this.handListeners.get(key)!;
-    set.add(callback);
+    set.add(callback as any);
 
+    const room = this.getRoomFromStorage(roomId);
     const hand = this.getHandFromStorage(roomId, playerId);
-    callback(hand);
+    const initHand = this.getInitialHandFromStorage(roomId, playerId);
+    const cardsToEmit = (room?.status === 'trump_selection' && initHand.length > 0) ? initHand : hand;
+    callback(cardsToEmit, initHand);
 
     return () => {
-      set.delete(callback);
+      set.delete(callback as any);
       if (set.size === 0) {
         this.handListeners.delete(key);
       }

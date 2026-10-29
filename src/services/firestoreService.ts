@@ -160,9 +160,6 @@ export class FirestoreRoomService {
     const dealerSeatIndex: SeatIndex = 0;
     const trumpCallerSeatIndex = courtPieceEngine.getTrumpCaller(dealerSeatIndex);
 
-    const deck = courtPieceEngine.createDeck();
-    const staged = courtPieceEngine.dealInitialFiveCards(deck);
-
     await runTransaction(firestore, async (transaction) => {
       const freshSnap = await transaction.get(roomRef);
       if (!freshSnap.exists()) throw new Error('Room not found.');
@@ -199,23 +196,21 @@ export class FirestoreRoomService {
         version: 1,
       };
 
-      // Store private hands (first 5 cards)
+      const deck = courtPieceEngine.createDeck();
+      const staged = courtPieceEngine.dealInitialFiveCards(deck);
+      const completed = courtPieceEngine.completeRemainingDeal(staged.phase1Hands, staged.remainingDeck);
+
+      // Store private hands for all 4 players (initial 5 cards + full 13 cards)
       for (let s = 0; s < 4; s++) {
         const player = room.seats[s]!;
         const handRef = doc(firestore, 'rooms', roomId, 'privateHands', player.id);
         transaction.set(handRef, {
           playerId: player.id,
-          cards: staged.phase1Hands[s as SeatIndex],
+          initialCards: staged.phase1Hands[s as SeatIndex],
+          cards: completed.fullHands[s as SeatIndex],
           updatedAt: serverTimestamp(),
         });
       }
-
-      // Store reserve 32 cards in server-only collection
-      const reserveRef = doc(firestore, 'rooms', roomId, 'serverData', 'reserve');
-      transaction.set(reserveRef, {
-        cards: staged.remainingDeck,
-        updatedAt: serverTimestamp(),
-      });
 
       transaction.update(roomRef, {
         status: 'trump_selection',
@@ -229,14 +224,10 @@ export class FirestoreRoomService {
   public async selectTrump(roomId: string, callerId: string, suit: Suit): Promise<void> {
     const firestore = this.getDb();
     const roomRef = doc(firestore, 'rooms', roomId);
-    const reserveRef = doc(firestore, 'rooms', roomId, 'serverData', 'reserve');
 
     await runTransaction(firestore, async (transaction) => {
       const roomSnap = await transaction.get(roomRef);
-      const reserveSnap = await transaction.get(reserveRef);
-
       if (!roomSnap.exists()) throw new Error('Room not found.');
-      if (!reserveSnap.exists()) throw new Error('Reserve deck not found.');
 
       const room = roomSnap.data() as RoomDocument;
       if (room.status !== 'trump_selection' || !room.gameState) {
@@ -248,42 +239,17 @@ export class FirestoreRoomService {
         throw new Error('Only the designated trump caller can select trump.');
       }
 
-      const remainingDeck = reserveSnap.data().cards as Card[];
-
-      // Retrieve initial hands
-      const initialHands: Record<SeatIndex, Card[]> = {} as any;
-      for (let s = 0; s < 4; s++) {
-        const p = room.seats[s]!;
-        const handRef = doc(firestore, 'rooms', roomId, 'privateHands', p.id);
-        const hSnap = await transaction.get(handRef);
-        initialHands[s as SeatIndex] = hSnap.data()?.cards || [];
-      }
-
-      const completed = courtPieceEngine.completeRemainingDeal(initialHands, remainingDeck);
-
-      // Save full 13-card hands
-      for (let s = 0; s < 4; s++) {
-        const p = room.seats[s]!;
-        const handRef = doc(firestore, 'rooms', roomId, 'privateHands', p.id);
-        transaction.update(handRef, {
-          cards: completed.fullHands[s as SeatIndex],
-          updatedAt: serverTimestamp(),
-        });
-      }
-
-      transaction.delete(reserveRef);
-
       room.gameState.trumpSuit = suit;
       room.gameState.status = 'playing';
       room.status = 'playing';
       room.gameState.remainingCardCounts = [13, 13, 13, 13];
       room.gameState.currentTurnSeatIndex = room.gameState.trumpCallerSeatIndex;
-      room.gameState.lastMoveNotice = `${callerSeat.nickname} selected ${suit.toUpperCase()} as Trump! Leading trick 1.`;
+      room.gameState.lastMoveNotice = `${callerSeat.nickname} selected ${suit.toUpperCase()} as Trump.`;
 
       transaction.update(roomRef, {
         status: 'playing',
         gameState: room.gameState,
-        version: room.version + 1,
+        version: (room.version || 0) + 1,
         updatedAt: serverTimestamp(),
       });
     });
@@ -410,22 +376,18 @@ export class FirestoreRoomService {
 
       const deck = courtPieceEngine.createDeck();
       const staged = courtPieceEngine.dealInitialFiveCards(deck);
+      const completed = courtPieceEngine.completeRemainingDeal(staged.phase1Hands, staged.remainingDeck);
 
       for (let s = 0; s < 4; s++) {
         const player = room.seats[s]!;
         const handRef = doc(firestore, 'rooms', roomId, 'privateHands', player.id);
         transaction.set(handRef, {
           playerId: player.id,
-          cards: staged.phase1Hands[s as SeatIndex],
+          initialCards: staged.phase1Hands[s as SeatIndex],
+          cards: completed.fullHands[s as SeatIndex],
           updatedAt: serverTimestamp(),
         });
       }
-
-      const reserveRef = doc(firestore, 'rooms', roomId, 'serverData', 'reserve');
-      transaction.set(reserveRef, {
-        cards: staged.remainingDeck,
-        updatedAt: serverTimestamp(),
-      });
 
       const callerPlayer = room.seats[nextTrumpCaller]!;
 
@@ -564,7 +526,7 @@ export class FirestoreRoomService {
   public subscribePrivateHand(
     roomId: string,
     playerId: string,
-    callback: (cards: Card[]) => void
+    callback: (cards: Card[], initialCards?: Card[]) => void
   ): () => void {
     const firestore = this.getDb();
     const handRef = doc(firestore, 'rooms', roomId, 'privateHands', playerId);
@@ -572,9 +534,12 @@ export class FirestoreRoomService {
       handRef,
       (snap) => {
         if (snap.exists()) {
-          callback((snap.data()?.cards || []) as Card[]);
+          const data = snap.data();
+          const cards = (data?.cards || []) as Card[];
+          const initialCards = (data?.initialCards || []) as Card[];
+          callback(cards, initialCards);
         } else {
-          callback([]);
+          callback([], []);
         }
       },
       (err) => {

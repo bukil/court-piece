@@ -6,7 +6,6 @@ import { WelcomeScreen } from './components/lobby/WelcomeScreen';
 import { WaitingLobby } from './components/lobby/WaitingLobby';
 import { GameTable } from './components/table/GameTable';
 import { GameResultsModal } from './components/results/GameResultsModal';
-import { RulesNoticeModal } from './components/common/RulesNoticeModal';
 import './App.css';
 
 const SESSION_ROOM_KEY = 'codebase_active_room_id';
@@ -14,7 +13,6 @@ const SESSION_ROOM_KEY = 'codebase_active_room_id';
 export function App() {
   const [identity, setIdentity] = useState<PlayerIdentity>(authService.getIdentity());
   const [currentRoom, setCurrentRoom] = useState<RoomDocument | null>(null);
-  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Subscribe to auth identity
@@ -25,12 +23,12 @@ export function App() {
 
   // Reconnection / Session recovery
   useEffect(() => {
-    let activeRoomId = sessionStorage.getItem(SESSION_ROOM_KEY);
+    const activeRoomId = sessionStorage.getItem(SESSION_ROOM_KEY);
 
-    // Hard safety timeout: NEVER remain stuck in loading under any network or auth condition
+    // Hard safety timeout
     const fallbackTimer = setTimeout(() => {
       setIsInitializing(false);
-    }, 1200);
+    }, 1000);
 
     // Support joining via URL e.g. ?room=CB7842
     if (!activeRoomId && typeof window !== 'undefined') {
@@ -137,20 +135,17 @@ export function App() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-[#0d151c] flex flex-col items-center justify-center text-slate-400 font-mono text-sm p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <span>Loading Codebase Court Piece...</span>
-        </div>
+      <div className="min-h-screen bg-[#07090e] flex flex-col items-center justify-center text-white/50 text-xs p-4">
+        <div className="w-5 h-5 border-2 border-white/60 border-t-transparent rounded-full animate-spin mb-3" />
         <button
           type="button"
           onClick={() => {
             sessionStorage.clear();
             setIsInitializing(false);
           }}
-          className="text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-4 cursor-pointer"
+          className="text-white/30 hover:text-white/60 transition-colors cursor-pointer"
         >
-          Skip to Welcome Screen
+          Skip
         </button>
       </div>
     );
@@ -168,14 +163,13 @@ export function App() {
     currentRoom?.status === 'deal_complete' || currentRoom?.status === 'match_complete';
 
   return (
-    <div className="min-h-screen w-full bg-[#0d151c] flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen w-full bg-[#07090e] flex flex-col font-sans selection:bg-white/20 selection:text-white">
       {!currentRoom && (
         <WelcomeScreen
           currentNickname={identity.nickname}
           onUpdateNickname={handleUpdateNickname}
           onCreateGame={handleCreateGame}
           onJoinGame={handleJoinGame}
-          onOpenRulesModal={() => setIsRulesModalOpen(true)}
         />
       )}
 
@@ -185,7 +179,6 @@ export function App() {
           localPlayerId={identity.id}
           onStartGame={handleStartGame}
           onLeaveRoom={handleLeaveRoom}
-          onOpenRulesModal={() => setIsRulesModalOpen(true)}
         />
       )}
 
@@ -195,7 +188,6 @@ export function App() {
             room={currentRoom}
             localPlayerId={identity.id}
             onLeaveRoom={handleLeaveRoom}
-            onOpenRulesModal={() => setIsRulesModalOpen(true)}
           />
 
           <GameResultsModal
@@ -210,11 +202,6 @@ export function App() {
           />
         </>
       )}
-
-      <RulesNoticeModal
-        isOpen={isRulesModalOpen}
-        onClose={() => setIsRulesModalOpen(false)}
-      />
     </div>
   );
 }

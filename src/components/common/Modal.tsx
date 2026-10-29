@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
   children: React.ReactNode;
 }
 
@@ -26,27 +26,27 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-fade-in"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
     >
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <h2 id="modal-title" className="text-xl font-bold tracking-tight text-white">
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-            aria-label="Close dialog"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="mt-4">{children}</div>
+      <div className="relative w-full max-w-sm bg-neutral-900/90 border border-white/10 rounded-3xl p-6 shadow-2xl text-white backdrop-blur-2xl max-h-[90vh] overflow-y-auto">
+        {title ? (
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
+            <h2 className="text-sm font-semibold tracking-tight text-white">
+              {title}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-white/40 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+        <div>{children}</div>
       </div>
     </div>
   );
 };
-

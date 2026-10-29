@@ -66,60 +66,35 @@ class RoomService {
     if (this.useSimulator()) {
       return localSimulator.startGame(roomId, callerId);
     }
-    try {
-      return await firestoreService.startGame(roomId, callerId);
-    } catch (err) {
-      console.warn('[RoomService] Firebase startGame failed, trying simulator:', err);
-      return localSimulator.startGame(roomId, callerId);
-    }
+    return await firestoreService.startGame(roomId, callerId);
   }
 
   public async selectTrump(roomId: string, callerId: string, suit: Suit): Promise<void> {
     if (this.useSimulator()) {
       return localSimulator.selectTrump(roomId, callerId, suit);
     }
-    try {
-      return await firestoreService.selectTrump(roomId, callerId, suit);
-    } catch (err) {
-      console.warn('[RoomService] Firebase selectTrump failed, trying simulator:', err);
-      return localSimulator.selectTrump(roomId, callerId, suit);
-    }
+    return await firestoreService.selectTrump(roomId, callerId, suit);
   }
 
   public async playCard(roomId: string, callerId: string, card: Card): Promise<void> {
     if (this.useSimulator()) {
       return localSimulator.playCard(roomId, callerId, card);
     }
-    try {
-      return await firestoreService.playCard(roomId, callerId, card);
-    } catch (err) {
-      console.warn('[RoomService] Firebase playCard failed, trying simulator:', err);
-      return localSimulator.playCard(roomId, callerId, card);
-    }
+    return await firestoreService.playCard(roomId, callerId, card);
   }
 
   public async startNextDeal(roomId: string, callerId: string): Promise<void> {
     if (this.useSimulator()) {
       return localSimulator.startNextDeal(roomId, callerId);
     }
-    try {
-      return await firestoreService.startNextDeal(roomId, callerId);
-    } catch (err) {
-      console.warn('[RoomService] Firebase startNextDeal failed, trying simulator:', err);
-      return localSimulator.startNextDeal(roomId, callerId);
-    }
+    return await firestoreService.startNextDeal(roomId, callerId);
   }
 
   public async requestRematch(roomId: string, callerId: string): Promise<void> {
     if (this.useSimulator()) {
       return localSimulator.requestRematch(roomId, callerId);
     }
-    try {
-      return await firestoreService.requestRematch(roomId, callerId);
-    } catch (err) {
-      console.warn('[RoomService] Firebase requestRematch failed, trying simulator:', err);
-      return localSimulator.requestRematch(roomId, callerId);
-    }
+    return await firestoreService.requestRematch(roomId, callerId);
   }
 
   public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
@@ -133,11 +108,7 @@ class RoomService {
     if (this.useSimulator()) {
       return localSimulator.leaveRoom(roomId, callerId);
     }
-    try {
-      return await firestoreService.leaveRoom(roomId, callerId);
-    } catch (err) {
-      return localSimulator.leaveRoom(roomId, callerId);
-    }
+    return await firestoreService.leaveRoom(roomId, callerId);
   }
 
   public subscribeRoom(roomId: string, callback: (room: RoomDocument | null) => void): () => void {
@@ -157,7 +128,7 @@ class RoomService {
   public subscribePrivateHand(
     roomId: string,
     playerId: string,
-    callback: (cards: Card[]) => void
+    callback: (cards: Card[], initialCards?: Card[]) => void
   ): () => void {
     if (this.useSimulator()) {
       return localSimulator.subscribePrivateHand(roomId, playerId, callback);

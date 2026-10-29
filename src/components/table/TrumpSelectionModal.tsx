@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { Card, Suit, Player } from '../../types/game';
 import { CardView } from './CardView';
 import { SUIT_SYMBOLS } from '../../game-engine/utils/deck';
-import { Button } from '../common/Button';
 
 interface TrumpSelectionModalProps {
   isOpen: boolean;
@@ -25,21 +24,22 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const suits: { suit: Suit; label: string; symbol: string; color: string; bg: string }[] = [
-    { suit: 'spades', label: 'Spades', symbol: SUIT_SYMBOLS.spades, color: 'text-slate-100', bg: 'hover:border-slate-400 bg-slate-900/90' },
-    { suit: 'hearts', label: 'Hearts', symbol: SUIT_SYMBOLS.hearts, color: 'text-rose-500', bg: 'hover:border-rose-400 bg-rose-950/40' },
-    { suit: 'diamonds', label: 'Diamonds', symbol: SUIT_SYMBOLS.diamonds, color: 'text-orange-500', bg: 'hover:border-orange-400 bg-orange-950/40' },
-    { suit: 'clubs', label: 'Clubs', symbol: SUIT_SYMBOLS.clubs, color: 'text-slate-100', bg: 'hover:border-slate-400 bg-slate-900/90' },
+  const suits: { suit: Suit; label: string; symbol: string; color: string }[] = [
+    { suit: 'spades', label: 'Spades', symbol: SUIT_SYMBOLS.spades, color: 'text-white' },
+    { suit: 'hearts', label: 'Hearts', symbol: SUIT_SYMBOLS.hearts, color: 'text-rose-500' },
+    { suit: 'diamonds', label: 'Diamonds', symbol: SUIT_SYMBOLS.diamonds, color: 'text-amber-500' },
+    { suit: 'clubs', label: 'Clubs', symbol: SUIT_SYMBOLS.clubs, color: 'text-white' },
   ];
 
-  const handleConfirm = async () => {
-    if (!selectedSuit) return;
+  const handlePick = async (suit: Suit) => {
+    if (isSubmitting) return;
+    setSelectedSuit(suit);
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await onSelectTrump(selectedSuit);
+      await onSelectTrump(suit);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to set trump.';
+      const msg = err instanceof Error ? err.message : 'Error setting trump';
       setErrorMsg(msg);
       setIsSubmitting(false);
     }
@@ -47,101 +47,64 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-fade-in"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="trump-selection-title"
     >
-      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-slate-100 text-center">
-        {/* Glow accent */}
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="relative w-full max-w-sm bg-neutral-900/90 border border-white/10 rounded-3xl p-6 shadow-2xl text-center backdrop-blur-2xl">
         {isCaller ? (
           <div>
-            <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-xs font-bold uppercase tracking-wider mb-3">
-              👑 You Are The Trump Caller
-            </div>
-
-            <h2 id="trump-selection-title" className="text-2xl sm:text-3xl font-black font-mono text-white mb-2">
-              Select Trump Suit
+            <h2 className="text-base font-semibold tracking-tight text-white/90 mb-4">
+              Choose Trump
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-6">
-              Review your initial 5 cards below. Choose which suit will be Trump for this deal. You will lead the first trick.
-            </p>
 
             {/* Initial 5 Cards */}
-            <div className="flex justify-center -space-x-3 sm:-space-x-4 mb-8">
+            <div className="flex justify-center -space-x-3 mb-6">
               {callerCards.slice(0, 5).map((card) => (
-                <div key={card.id} className="transition-transform hover:-translate-y-2">
+                <div key={card.id} className="transition-transform hover:-translate-y-1">
                   <CardView card={card} size="sm" />
                 </div>
               ))}
             </div>
 
             {errorMsg && (
-              <div className="mb-4 p-2.5 rounded-lg bg-rose-950/80 border border-rose-500 text-rose-200 text-xs">
-                ⚠️ {errorMsg}
+              <div className="mb-3 text-xs text-rose-400 font-medium">
+                {errorMsg}
               </div>
             )}
 
-            {/* 4 Large Suit Selection Controls */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {/* 4 Apple-style Suit buttons */}
+            <div className="grid grid-cols-4 gap-2">
               {suits.map((item) => {
-                const isSelected = selectedSuit === item.suit;
+                const isSelected = selectedSuit === item.suit && isSubmitting;
                 return (
                   <button
                     key={item.suit}
                     type="button"
-                    onClick={() => setSelectedSuit(item.suit)}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
-                      item.bg
-                    } ${
+                    disabled={isSubmitting}
+                    onClick={() => handlePick(item.suit)}
+                    className={`flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl border transition-all active:scale-95 cursor-pointer ${
                       isSelected
-                        ? 'border-amber-400 ring-4 ring-amber-400/20 scale-105 shadow-xl'
-                        : 'border-slate-800 opacity-80 hover:opacity-100'
+                        ? 'bg-white/20 border-white text-white shadow-lg'
+                        : 'bg-white/[0.05] border-white/[0.08] hover:bg-white/[0.1] hover:border-white/20'
                     }`}
                   >
-                    <span className={`text-3xl sm:text-4xl ${item.color} mb-1 leading-none`}>
+                    <span className={`text-2xl ${item.color} leading-none mb-1`}>
                       {item.symbol}
                     </span>
-                    <span className="font-mono font-bold text-xs uppercase tracking-wider text-slate-200">
+                    <span className="text-[10px] font-medium tracking-wide text-white/70">
                       {item.label}
                     </span>
                   </button>
                 );
               })}
             </div>
-
-            <Button
-              variant="accent"
-              size="lg"
-              disabled={!selectedSuit}
-              isLoading={isSubmitting}
-              onClick={handleConfirm}
-              className="w-full text-base py-3 font-black"
-            >
-              {selectedSuit
-                ? `Confirm ${selectedSuit.toUpperCase()} as Trump`
-                : 'Select a Suit Above'}
-            </Button>
           </div>
         ) : (
-          <div className="py-6 flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl mb-4 animate-bounce">
-              🃏
-            </div>
-
-            <h2 id="trump-selection-title" className="text-xl sm:text-2xl font-black font-mono text-white mb-2">
-              Trump Selection In Progress
-            </h2>
-
-            <p className="text-xs sm:text-sm text-slate-400 max-w-sm mb-6">
-              Waiting for <strong className="text-amber-300 font-bold">{callerPlayer?.nickname || 'Trump Caller'}</strong> to evaluate their initial 5 cards and select Trump...
-            </p>
-
-            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Deal will proceed automatically once selected</span>
+          <div className="py-4 flex flex-col items-center">
+            <div className="flex items-center gap-2 text-sm text-white/80">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span>Waiting for {callerPlayer?.nickname || 'Caller'} to choose trump</span>
             </div>
           </div>
         )}
@@ -149,4 +112,3 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
     </div>
   );
 };
-
