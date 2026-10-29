@@ -15,6 +15,7 @@ import { HandView } from './HandView';
 import { Scoreboard } from './Scoreboard';
 import { TurnBanner } from './TurnBanner';
 import { TrumpSelectionModal } from './TrumpSelectionModal';
+import { ReactionPicker } from './ReactionPicker';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 
@@ -36,6 +37,7 @@ export const GameTable: React.FC<GameTableProps> = ({
   const [isMuted, setIsMuted] = useState(soundService.getIsMuted());
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [activeReactions, setActiveReactions] = useState<Record<number, string | null>>({});
 
   const gameState = room.gameState;
   const localPlayer = room.seats.find((s) => s?.id === localPlayerId);
@@ -55,6 +57,18 @@ export const GameTable: React.FC<GameTableProps> = ({
       soundService.playTurnNotification();
     }
   }, [gameState?.currentTurnSeatIndex, localSeatIndex, gameState?.status]);
+
+  // Real-time reaction animation across all 4 screens
+  useEffect(() => {
+    const rx = gameState?.lastReaction;
+    if (!rx) return;
+    soundService.playReactionSound();
+    setActiveReactions((prev) => ({ ...prev, [rx.seatIndex]: rx.emoji }));
+    const timer = setTimeout(() => {
+      setActiveReactions((prev) => ({ ...prev, [rx.seatIndex]: null }));
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [gameState?.lastReaction?.id]);
 
   // Relative seat position calculation (local player always at bottom)
   const getRelativePosition = (seatIndex: number): RelativePosition => {
@@ -114,6 +128,10 @@ export const GameTable: React.FC<GameTableProps> = ({
     await roomService.selectTrump(room.id, localPlayerId, suit);
   };
 
+  const handleSendReaction = (emoji: string) => {
+    roomService.sendReaction(room.id, localPlayerId, emoji);
+  };
+
   const handlePlayCard = (card: Card) => {
     setActionError(null);
     startTransition(async () => {
@@ -138,14 +156,14 @@ export const GameTable: React.FC<GameTableProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className="text-emerald-400 font-mono font-black text-lg tracking-wider">CODEBASE</span>
-            <span className="hidden sm:inline-block text-[10px] text-slate-400 font-mono">COURT PIECE (SINGLE SIR)</span>
+            <span className="hidden sm:inline-block text-[10px] text-slate-400 font-mono">COURT PIECE</span>
           </div>
 
           {/* Room Code Badge & Copy */}
           <button
             onClick={handleCopyCode}
             title="Click to copy room code"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-xs font-mono font-bold text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-xs font-mono font-bold text-slate-200 transition-colors cursor-pointer"
           >
             <span>ROOM: {room.code}</span>
             <span className="text-[10px] text-slate-400">
@@ -156,7 +174,7 @@ export const GameTable: React.FC<GameTableProps> = ({
           {/* Rules info */}
           <button
             onClick={onOpenRulesModal}
-            className="hidden md:inline-flex items-center gap-1"
+            className="hidden md:inline-flex items-center gap-1 cursor-pointer"
           >
             <Badge variant="emerald" size="sm">
               ✓ Single Sir Rules
@@ -179,6 +197,9 @@ export const GameTable: React.FC<GameTableProps> = ({
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Reaction picker */}
+          <ReactionPicker onSendReaction={handleSendReaction} />
+
           <Button
             variant="ghost"
             size="sm"
@@ -232,6 +253,7 @@ export const GameTable: React.FC<GameTableProps> = ({
             isDealer={gameState?.dealerSeatIndex === topSeat.seatIndex}
             isCaller={gameState?.trumpCallerSeatIndex === topSeat.seatIndex}
             cardCount={gameState?.remainingCardCounts[topSeat.seatIndex] ?? 0}
+            activeReaction={activeReactions[topSeat.seatIndex]}
           />
         </div>
 
@@ -248,6 +270,7 @@ export const GameTable: React.FC<GameTableProps> = ({
               isDealer={gameState?.dealerSeatIndex === leftSeat.seatIndex}
               isCaller={gameState?.trumpCallerSeatIndex === leftSeat.seatIndex}
               cardCount={gameState?.remainingCardCounts[leftSeat.seatIndex] ?? 0}
+              activeReaction={activeReactions[leftSeat.seatIndex]}
             />
           </div>
 
@@ -273,6 +296,7 @@ export const GameTable: React.FC<GameTableProps> = ({
               isDealer={gameState?.dealerSeatIndex === rightSeat.seatIndex}
               isCaller={gameState?.trumpCallerSeatIndex === rightSeat.seatIndex}
               cardCount={gameState?.remainingCardCounts[rightSeat.seatIndex] ?? 0}
+              activeReaction={activeReactions[rightSeat.seatIndex]}
             />
           </div>
         </div>
@@ -300,6 +324,7 @@ export const GameTable: React.FC<GameTableProps> = ({
                 isDealer={gameState?.dealerSeatIndex === bottomSeat.seatIndex}
                 isCaller={gameState?.trumpCallerSeatIndex === bottomSeat.seatIndex}
                 cardCount={hand.length}
+                activeReaction={activeReactions[bottomSeat.seatIndex]}
               />
             </div>
 

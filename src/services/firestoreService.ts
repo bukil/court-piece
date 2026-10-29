@@ -473,6 +473,38 @@ export class FirestoreRoomService {
     });
   }
 
+  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
+    const firestore = this.getDb();
+    const roomRef = doc(firestore, 'rooms', roomId);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const snap = await transaction.get(roomRef);
+        if (!snap.exists()) return;
+        const room = snap.data() as RoomDocument;
+        if (!room.gameState) return;
+
+        const player = room.seats.find((s) => s?.id === callerId);
+        if (!player) return;
+
+        const rx = {
+          id: 'rx_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36),
+          playerId: callerId,
+          seatIndex: player.seatIndex,
+          emoji,
+          timestamp: Date.now(),
+        };
+
+        transaction.update(roomRef, {
+          'gameState.lastReaction': rx,
+          updatedAt: serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      console.warn('[FirestoreRoomService] Failed to send reaction:', e);
+    }
+  }
+
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
     const firestore = this.getDb();
     const roomRef = doc(firestore, 'rooms', roomId);

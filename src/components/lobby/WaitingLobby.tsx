@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { RoomDocument } from '../../types/game';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
+import { Avatar } from '../common/Avatar';
 
 interface WaitingLobbyProps {
   room: RoomDocument;
@@ -125,17 +126,13 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
               >
                 <div className="flex items-center gap-3">
                   {/* Seat Avatar / Number */}
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-mono font-bold text-sm ${
-                      seatPlayer
-                        ? isTeamAlpha
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
-                          : 'bg-indigo-950 text-indigo-400 border border-indigo-500/40'
-                        : 'bg-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
+                  {seatPlayer ? (
+                    <Avatar seed={seatPlayer.id} teamId={seatPlayer.teamId} size="md" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-mono font-bold text-sm bg-slate-800 text-slate-500 border border-dashed border-slate-700">
+                      {idx + 1}
+                    </div>
+                  )}
 
                   {/* Player Info */}
                   <div className="flex flex-col">

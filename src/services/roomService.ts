@@ -122,6 +122,13 @@ class RoomService {
     }
   }
 
+  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
+    if (this.useSimulator()) {
+      return localSimulator.sendReaction(roomId, callerId, emoji);
+    }
+    return firestoreService.sendReaction(roomId, callerId, emoji);
+  }
+
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
     if (this.useSimulator()) {
       return localSimulator.leaveRoom(roomId, callerId);

@@ -46,6 +46,14 @@ export interface Trick {
   winnerSeatIndex?: SeatIndex;
 }
 
+export interface ReactionEvent {
+  id: string;
+  playerId: string;
+  seatIndex: SeatIndex;
+  emoji: string;
+  timestamp: number;
+}
+
 export interface TeamScore {
   tricksWon: number; // in current deal (first to 7 wins deal)
 }
@@ -63,6 +71,7 @@ export interface PublicGameState {
   matchTarget: number;                   // Default 7 match points
   remainingCardCounts: [number, number, number, number]; // Seats 0..3
   lastMoveNotice?: string;
+  lastReaction?: ReactionEvent;
   status: RoomStatus;
   dealWinnerTeamId?: TeamId;
   matchWinnerTeamId?: TeamId;

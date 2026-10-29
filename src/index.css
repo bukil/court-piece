@@ -38,3 +38,26 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.15s ease-out forwards;
 }
+
+@keyframes reactionFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.2);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.85);
+  }
+}
+
+.animate-reaction-float {
+  animation: reactionFloat 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}

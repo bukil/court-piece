@@ -535,6 +535,22 @@ export class LocalSimulatorService {
     this.saveRoomToStorage(room);
   }
 
+  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
+    const room = this.getRoomFromStorage(roomId);
+    if (!room || !room.gameState) return;
+    const player = room.seats.find((s) => s?.id === callerId);
+    if (!player) return;
+
+    room.gameState.lastReaction = {
+      id: 'rx_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36),
+      playerId: callerId,
+      seatIndex: player.seatIndex,
+      emoji,
+      timestamp: Date.now(),
+    };
+    this.saveRoomToStorage(room);
+  }
+
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
     const room = this.getRoomFromStorage(roomId);
     if (!room) return;
