@@ -565,20 +565,18 @@ export class LocalSimulatorService {
     this.saveRoomToStorage(room);
   }
 
-  public subscribeRoom(roomId: string, callback: (room: RoomDocument) => void): () => void {
+  public subscribeRoom(roomId: string, callback: (room: RoomDocument | null) => void): () => void {
     if (!this.roomListeners.has(roomId)) {
       this.roomListeners.set(roomId, new Set());
     }
     const set = this.roomListeners.get(roomId)!;
-    set.add(callback);
+    set.add(callback as any);
 
     const room = this.getRoomFromStorage(roomId);
-    if (room) {
-      callback(room);
-    }
+    callback(room);
 
     return () => {
-      set.delete(callback);
+      set.delete(callback as any);
       if (set.size === 0) {
         this.roomListeners.delete(roomId);
       }

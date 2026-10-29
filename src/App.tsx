@@ -27,6 +27,11 @@ export function App() {
   useEffect(() => {
     let activeRoomId = sessionStorage.getItem(SESSION_ROOM_KEY);
 
+    // Hard safety timeout: NEVER remain stuck in loading under any network or auth condition
+    const fallbackTimer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 1200);
+
     // Support joining via URL e.g. ?room=CB7842
     if (!activeRoomId && typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -41,18 +46,31 @@ export function App() {
           .catch((err) => {
             console.warn('[App] Auto-join from URL failed:', err);
           })
-          .finally(() => setIsInitializing(false));
-        return;
+          .finally(() => {
+            clearTimeout(fallbackTimer);
+            setIsInitializing(false);
+          });
+        return () => clearTimeout(fallbackTimer);
       }
     }
 
     if (activeRoomId) {
       const unsub = roomService.subscribeRoom(activeRoomId, (room) => {
-        setCurrentRoom(room);
+        clearTimeout(fallbackTimer);
+        if (room) {
+          setCurrentRoom(room);
+        } else {
+          sessionStorage.removeItem(SESSION_ROOM_KEY);
+          setCurrentRoom(null);
+        }
         setIsInitializing(false);
       });
-      return () => unsub();
+      return () => {
+        clearTimeout(fallbackTimer);
+        unsub();
+      };
     } else {
+      clearTimeout(fallbackTimer);
       setIsInitializing(false);
     }
   }, [identity.id, identity.nickname]);
@@ -61,7 +79,9 @@ export function App() {
   useEffect(() => {
     if (!currentRoom?.id) return;
     const unsub = roomService.subscribeRoom(currentRoom.id, (freshRoom) => {
-      setCurrentRoom(freshRoom);
+      if (freshRoom) {
+        setCurrentRoom(freshRoom);
+      }
     });
     return () => unsub();
   }, [currentRoom?.id]);
@@ -117,11 +137,21 @@ export function App() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-[#0d151c] flex items-center justify-center text-slate-400 font-mono text-sm">
-        <div className="flex items-center gap-3">
+      <div className="min-h-screen bg-[#0d151c] flex flex-col items-center justify-center text-slate-400 font-mono text-sm p-4">
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           <span>Loading Codebase Court Piece...</span>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.clear();
+            setIsInitializing(false);
+          }}
+          className="text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-4 cursor-pointer"
+        >
+          Skip to Welcome Screen
+        </button>
       </div>
     );
   }

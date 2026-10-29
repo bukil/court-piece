@@ -79,19 +79,26 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       {/* Top bar with mode indicator */}
       <header className="relative z-10 flex items-center justify-between max-w-4xl w-full mx-auto">
         <div className="flex items-center gap-2">
-          <Badge
-            variant={backendMode === 'firebase' ? 'emerald' : 'blue'}
-            size="sm"
+          <button
+            type="button"
+            onClick={() => roomService.setForceSimulator(backendMode === 'firebase')}
+            title="Click to toggle between Firebase Live and Local Multi-Tab Simulator"
+            className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
           >
-            {backendMode === 'firebase' ? '● Firebase Live' : '● Multi-Tab Simulator'}
-          </Badge>
+            <Badge
+              variant={backendMode === 'firebase' ? 'emerald' : 'blue'}
+              size="sm"
+            >
+              {backendMode === 'firebase' ? '● Firebase Live (Click to switch)' : '● Multi-Tab Simulator (Click to switch)'}
+            </Badge>
+          </button>
         </div>
 
         <button
           onClick={onOpenRulesModal}
-          className="text-xs text-amber-300 hover:text-amber-200 underline underline-offset-4 font-mono"
+          className="text-xs text-amber-300 hover:text-amber-200 underline underline-offset-4 font-mono cursor-pointer"
         >
-          Rules Status: Demo Engine
+          Court Piece Rules Info
         </button>
       </header>
 

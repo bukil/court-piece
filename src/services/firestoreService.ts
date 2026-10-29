@@ -510,7 +510,7 @@ export class FirestoreRoomService {
     });
   }
 
-  public subscribeRoom(roomId: string, callback: (room: RoomDocument) => void): () => void {
+  public subscribeRoom(roomId: string, callback: (room: RoomDocument | null) => void): () => void {
     const firestore = this.getDb();
     const roomRef = doc(firestore, 'rooms', roomId);
     return onSnapshot(
@@ -518,10 +518,13 @@ export class FirestoreRoomService {
       (snap) => {
         if (snap.exists()) {
           callback({ ...snap.data(), id: snap.id } as RoomDocument);
+        } else {
+          callback(null);
         }
       },
       (err) => {
-        console.error('[FirestoreRoomService] Room subscription error:', err);
+        console.warn('[FirestoreRoomService] Room subscription error:', err);
+        callback(null);
       }
     );
   }
