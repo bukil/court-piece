@@ -45,3 +45,4 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({ onSendReaction }
     </div>
   );
 };
+
