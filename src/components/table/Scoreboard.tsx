@@ -8,25 +8,32 @@ interface ScoreboardProps {
   matchTarget: number;
   currentDeal: number;
   trumpSuit: Suit | null;
+  onClick?: () => void;
 }
 
 export const Scoreboard: React.FC<ScoreboardProps> = ({
   dealScores,
   matchScores,
   trumpSuit,
+  onClick,
 }) => {
   const trumpSymbol = trumpSuit ? SUIT_SYMBOLS[trumpSuit] : null;
   const isRedTrump = trumpSuit === 'hearts' || trumpSuit === 'diamonds';
 
   return (
-    <div className="flex items-center gap-3 sm:gap-5 bg-neutral-900/80 border border-white/10 rounded-full px-4 sm:px-5 py-2 backdrop-blur-2xl shadow-xl text-xs">
+    <button
+      type="button"
+      onClick={onClick}
+      title="Click to view full hand & score record"
+      className="flex items-center gap-3 sm:gap-4 bg-neutral-900/80 hover:bg-neutral-900 border border-white/10 hover:border-white/20 rounded-full px-4 sm:px-5 py-1.5 backdrop-blur-2xl shadow-xl text-xs cursor-pointer transition-all active:scale-95"
+    >
       {/* Team 1 */}
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] font-medium text-white/50">T1</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-medium text-emerald-400/80">T1</span>
         <span className="font-semibold text-sm text-white">
           {dealScores[0].tricksWon}
         </span>
-        <span className="text-[10px] text-white/30">
+        <span className="text-[10px] text-white/40">
           ({matchScores[0]})
         </span>
       </div>
@@ -47,15 +54,15 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({
       <div className="h-3 w-px bg-white/10" />
 
       {/* Team 2 */}
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-white/30">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-white/40">
           ({matchScores[1]})
         </span>
         <span className="font-semibold text-sm text-white">
           {dealScores[1].tricksWon}
         </span>
-        <span className="text-[11px] font-medium text-white/50">T2</span>
+        <span className="text-[11px] font-medium text-indigo-400/80">T2</span>
       </div>
-    </div>
+    </button>
   );
 };

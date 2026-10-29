@@ -54,10 +54,12 @@ export const SeatView: React.FC<SeatViewProps> = ({
       {activeReaction && (
         <div
           key={activeReaction}
-          className="absolute -top-10 z-30 flex items-center justify-center pointer-events-none animate-reaction-float"
+          className="absolute -top-12 z-30 flex items-center justify-center pointer-events-none animate-reaction-float"
         >
-          <div className="px-2.5 py-1 rounded-full bg-neutral-900 border border-white/20 shadow-xl text-2xl backdrop-blur-md">
+          <div className="relative px-3 py-1.5 rounded-full bg-neutral-900/90 border border-white/20 shadow-2xl text-2xl backdrop-blur-xl">
             {activeReaction}
+            <span className="absolute -top-1.5 -right-1.5 text-xs animate-particle-burst">✨</span>
+            <span className="absolute -bottom-1 -left-1.5 text-xs animate-particle-burst">💫</span>
           </div>
         </div>
       )}

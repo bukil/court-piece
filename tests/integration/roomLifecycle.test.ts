@@ -170,4 +170,31 @@ describe('Room Lifecycle & Multiplayer Seating Integration', () => {
       'Only the designated trump caller can choose the trump suit.'
     );
   });
+
+  it('delivers common chat messages across room participants', async () => {
+    const host = { id: 'p0', nickname: 'Alice' };
+    const room = await sim.createRoom(host);
+    await sim.joinRoom(room.code, { id: 'p1', nickname: 'Bob' });
+
+    await sim.sendChatMessage(room.id, {
+      playerId: 'p0',
+      nickname: 'Alice',
+      teamId: 0,
+      text: 'Good luck everyone!',
+    });
+
+    await sim.sendChatMessage(room.id, {
+      playerId: 'p1',
+      nickname: 'Bob',
+      teamId: 1,
+      text: 'Have fun!',
+    });
+
+    const updated = await sim.findRoomByCode(room.code);
+    expect(updated?.messages).toHaveLength(2);
+    expect(updated?.messages?.[0].text).toBe('Good luck everyone!');
+    expect(updated?.messages?.[0].nickname).toBe('Alice');
+    expect(updated?.messages?.[1].text).toBe('Have fun!');
+    expect(updated?.messages?.[1].nickname).toBe('Bob');
+  });
 });

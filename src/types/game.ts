@@ -78,6 +78,15 @@ export interface PublicGameState {
   version: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  nickname: string;
+  teamId: TeamId;
+  text: string;
+  timestamp: number;
+}
+
 export interface RoomDocument {
   id: string;
   code: string; // 6-char room code
@@ -90,6 +99,7 @@ export interface RoomDocument {
   ruleEngineId: string;
   isOfficialRules: boolean;
   version: number;
+  messages?: ChatMessage[];
 }
 
 export interface PrivateHandDocument {

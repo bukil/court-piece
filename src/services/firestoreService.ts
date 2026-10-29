@@ -8,6 +8,8 @@ import {
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  updateDoc,
+  arrayUnion,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import type {
@@ -19,6 +21,7 @@ import type {
   TeamId,
   PlayedCard,
   Suit,
+  ChatMessage,
 } from '../types/game';
 import { courtPieceEngine } from '../game-engine/court-piece/CourtPieceEngine';
 
@@ -464,6 +467,27 @@ export class FirestoreRoomService {
       });
     } catch (e) {
       console.warn('[FirestoreRoomService] Failed to send reaction:', e);
+    }
+  }
+
+  public async sendChatMessage(
+    roomId: string,
+    message: Omit<ChatMessage, 'id' | 'timestamp'>
+  ): Promise<void> {
+    const firestore = this.getDb();
+    const roomRef = doc(firestore, 'rooms', roomId);
+    const newMsg: ChatMessage = {
+      ...message,
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: Date.now(),
+    };
+    try {
+      await updateDoc(roomRef, {
+        messages: arrayUnion(newMsg),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.warn('[FirestoreRoomService] Failed to send chat message:', e);
     }
   }
 

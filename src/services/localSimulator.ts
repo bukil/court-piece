@@ -7,6 +7,7 @@ import type {
   TeamId,
   PlayedCard,
   Suit,
+  ChatMessage,
 } from '../types/game';
 import { courtPieceEngine } from '../game-engine/court-piece/CourtPieceEngine';
 import { getStorage } from './storageAdapter';
@@ -550,6 +551,25 @@ export class LocalSimulatorService {
       const p = room.seats[s];
       if (p) this.notifyHandSubscribers(roomId, p.id);
     }
+  }
+
+  public async sendChatMessage(
+    roomId: string,
+    message: Omit<ChatMessage, 'id' | 'timestamp'>
+  ): Promise<void> {
+    const room = this.getRoomFromStorage(roomId);
+    if (!room) return;
+    const newMsg: ChatMessage = {
+      ...message,
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: Date.now(),
+    };
+    if (!room.messages) room.messages = [];
+    room.messages.push(newMsg);
+    if (room.messages.length > 50) {
+      room.messages = room.messages.slice(-50);
+    }
+    this.saveRoomToStorage(room);
   }
 
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {

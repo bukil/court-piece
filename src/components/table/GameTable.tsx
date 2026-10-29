@@ -16,6 +16,9 @@ import { Scoreboard } from './Scoreboard';
 import { TurnBanner } from './TurnBanner';
 import { TrumpSelectionModal } from './TrumpSelectionModal';
 import { ReactionPicker } from './ReactionPicker';
+import { ScoreRecordDrawer } from './ScoreRecordDrawer';
+import { CommonChatDrawer } from './CommonChatDrawer';
+import { ShuffleDistributionOverlay } from './ShuffleDistributionOverlay';
 
 interface GameTableProps {
   room: RoomDocument;
@@ -37,9 +40,20 @@ export const GameTable: React.FC<GameTableProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeReactions, setActiveReactions] = useState<Record<number, string | null>>({});
 
+  // Modals / Drawers
+  const [isScoreDrawerOpen, setIsScoreDrawerOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [lastReadMessageCount, setLastReadMessageCount] = useState(0);
+  const [showShuffleAnimation, setShowShuffleAnimation] = useState(
+    room.status === 'trump_selection' && (room.gameState?.completedTricks.length ?? 0) === 0
+  );
+
   const gameState = room.gameState;
   const localPlayer = room.seats.find((s) => s?.id === localPlayerId);
   const localSeatIndex: SeatIndex = localPlayer ? localPlayer.seatIndex : 0;
+
+  const messages = room.messages || [];
+  const unreadCount = isChatOpen ? 0 : Math.max(0, messages.length - lastReadMessageCount);
 
   // Subscribe to private hand
   useEffect(() => {
@@ -70,6 +84,20 @@ export const GameTable: React.FC<GameTableProps> = ({
     }, 2200);
     return () => clearTimeout(timer);
   }, [gameState?.lastReaction?.id]);
+
+  // Reset read messages when chat drawer is opened
+  useEffect(() => {
+    if (isChatOpen) {
+      setLastReadMessageCount(messages.length);
+    }
+  }, [isChatOpen, messages.length]);
+
+  // Trigger shuffle animation on new deal
+  useEffect(() => {
+    if (gameState?.status === 'trump_selection' && gameState.completedTricks.length === 0) {
+      setShowShuffleAnimation(true);
+    }
+  }, [gameState?.currentDeal, gameState?.status]);
 
   // Relative seat position calculation (local player always at bottom)
   const getRelativePosition = (seatIndex: number): RelativePosition => {
@@ -139,6 +167,16 @@ export const GameTable: React.FC<GameTableProps> = ({
     roomService.sendReaction(room.id, localPlayerId, emoji);
   };
 
+  const handleSendChatMessage = async (text: string) => {
+    if (!localPlayer) return;
+    await roomService.sendChatMessage(room.id, {
+      playerId: localPlayerId,
+      nickname: localPlayer.nickname,
+      teamId: localPlayer.teamId,
+      text,
+    });
+  };
+
   const handlePlayCard = (card: Card) => {
     setActionError(null);
     startTransition(async () => {
@@ -158,6 +196,14 @@ export const GameTable: React.FC<GameTableProps> = ({
       {/* Subtle Table Felt Accent */}
       <div className="absolute inset-0 bg-radial from-emerald-950/20 via-transparent to-transparent pointer-events-none" />
 
+      {/* Shuffling & Distribution Overlay Animation */}
+      {showShuffleAnimation && gameState && (
+        <ShuffleDistributionOverlay
+          dealNumber={gameState.currentDeal}
+          onAnimationComplete={() => setShowShuffleAnimation(false)}
+        />
+      )}
+
       {/* Floating Top Navigation */}
       <header className="relative z-20 w-full px-4 py-3 flex items-center justify-between border-b border-white/[0.06] backdrop-blur-2xl">
         <div className="flex items-center gap-3">
@@ -172,7 +218,7 @@ export const GameTable: React.FC<GameTableProps> = ({
           </button>
         </div>
 
-        {/* Center Scoreboard */}
+        {/* Center Scoreboard — Clickable to open full hand record */}
         {gameState && (
           <div className="hidden sm:block">
             <Scoreboard
@@ -181,12 +227,28 @@ export const GameTable: React.FC<GameTableProps> = ({
               matchTarget={gameState.matchTarget}
               currentDeal={gameState.currentDeal}
               trumpSuit={gameState.trumpSuit}
+              onClick={() => setIsScoreDrawerOpen(true)}
             />
           </div>
         )}
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Common Chat Button with unread badge */}
+          <button
+            type="button"
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="relative px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-xs text-white/60 hover:text-white transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+          >
+            <span>💬</span>
+            <span className="hidden sm:inline">Chat</span>
+            {unreadCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
           <ReactionPicker onSendReaction={handleSendReaction} />
 
           <button
@@ -215,6 +277,7 @@ export const GameTable: React.FC<GameTableProps> = ({
             matchTarget={gameState.matchTarget}
             currentDeal={gameState.currentDeal}
             trumpSuit={gameState.trumpSuit}
+            onClick={() => setIsScoreDrawerOpen(true)}
           />
         </div>
       )}
@@ -287,13 +350,15 @@ export const GameTable: React.FC<GameTableProps> = ({
           </div>
         </div>
 
-        {/* Bottom: Turn Status & Local Hand */}
+        {/* Bottom: Turn Status & Local Hand with Slide/Double-Touch Gestures */}
         <div className="w-full flex flex-col items-center relative">
           {/* Floating Reaction for local player */}
           {activeReactions[bottomSeat.seatIndex] && (
-            <div className="absolute -top-10 z-30 pointer-events-none animate-reaction-float">
-              <div className="px-2.5 py-1 rounded-full bg-neutral-900 border border-white/20 shadow-xl text-2xl backdrop-blur-md">
+            <div className="absolute -top-12 z-30 pointer-events-none animate-reaction-float">
+              <div className="relative px-3 py-1.5 rounded-full bg-neutral-900/90 border border-white/20 shadow-2xl text-2xl backdrop-blur-xl">
                 {activeReactions[bottomSeat.seatIndex]}
+                <span className="absolute -top-1.5 -right-1.5 text-xs animate-particle-burst">✨</span>
+                <span className="absolute -bottom-1 -left-1.5 text-xs animate-particle-burst">💫</span>
               </div>
             </div>
           )}
@@ -309,11 +374,12 @@ export const GameTable: React.FC<GameTableProps> = ({
           )}
 
           <div className="w-full flex flex-col items-center">
-            {/* Interactive Hand View */}
+            {/* Interactive Hand View (Supports slide-up gesture, double-touch, and trump aura) */}
             <HandView
               cards={displayHand}
               isMyTurn={isMyTurn && gameState?.status === 'playing'}
               leadSuit={gameState?.currentTrick.leadSuit}
+              trumpSuit={gameState?.trumpSuit}
               onPlayCard={handlePlayCard}
               isLoading={isPending}
             />
@@ -328,6 +394,23 @@ export const GameTable: React.FC<GameTableProps> = ({
         callerPlayer={trumpCallerPlayer}
         callerCards={displayHand}
         onSelectTrump={handleSelectTrump}
+      />
+
+      {/* Score & Hand Record Drawer */}
+      <ScoreRecordDrawer
+        isOpen={isScoreDrawerOpen}
+        onClose={() => setIsScoreDrawerOpen(false)}
+        gameState={gameState}
+        seats={room.seats}
+      />
+
+      {/* Common Chat Drawer */}
+      <CommonChatDrawer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        messages={messages}
+        localPlayerId={localPlayerId}
+        onSendMessage={handleSendChatMessage}
       />
     </div>
   );

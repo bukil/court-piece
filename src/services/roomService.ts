@@ -1,7 +1,7 @@
 import { isFirebaseConfigured } from './firebaseConfig';
 import { localSimulator } from './localSimulator';
 import { firestoreService } from './firestoreService';
-import type { RoomDocument, Card, SeatIndex, Suit } from '../types/game';
+import type { RoomDocument, Card, SeatIndex, Suit, ChatMessage } from '../types/game';
 
 class RoomService {
   private useSimulator(): boolean {
@@ -102,6 +102,16 @@ class RoomService {
       return localSimulator.sendReaction(roomId, callerId, emoji);
     }
     return firestoreService.sendReaction(roomId, callerId, emoji);
+  }
+
+  public async sendChatMessage(
+    roomId: string,
+    message: Omit<ChatMessage, 'id' | 'timestamp'>
+  ): Promise<void> {
+    if (this.useSimulator()) {
+      return localSimulator.sendChatMessage(roomId, message);
+    }
+    return firestoreService.sendChatMessage(roomId, message);
   }
 
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
