@@ -135,7 +135,7 @@ export function App() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-[#07090e] flex flex-col items-center justify-center text-white/50 text-xs p-4">
+      <div className="min-h-dvh bg-[#07090e] flex flex-col items-center justify-center text-white/50 text-xs p-4">
         <div className="w-5 h-5 border-2 border-white/60 border-t-transparent rounded-full animate-spin mb-3" />
         <button
           type="button"
@@ -163,7 +163,7 @@ export function App() {
     currentRoom?.status === 'deal_complete' || currentRoom?.status === 'match_complete';
 
   return (
-    <div className="min-h-screen w-full bg-[#07090e] flex flex-col font-sans selection:bg-white/20 selection:text-white">
+    <div className="min-h-dvh w-full bg-[#07090e] flex flex-col font-sans selection:bg-white/20 selection:text-white">
       {!currentRoom && (
         <WelcomeScreen
           currentNickname={identity.nickname}

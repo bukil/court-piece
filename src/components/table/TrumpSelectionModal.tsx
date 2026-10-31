@@ -47,14 +47,14 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 animate-fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-sm bg-neutral-900/90 border border-white/10 rounded-3xl p-6 shadow-2xl text-center backdrop-blur-2xl">
+      <div className="relative w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-center">
         {isCaller ? (
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-white/90 mb-4">
+            <h2 className="text-base font-semibold tracking-tight text-white mb-4">
               Choose Trump
             </h2>
 
@@ -73,7 +73,7 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
               </div>
             )}
 
-            {/* 4 Apple-style Suit buttons */}
+            {/* Suit selection buttons */}
             <div className="grid grid-cols-4 gap-2">
               {suits.map((item) => {
                 const isSelected = selectedSuit === item.suit && isSubmitting;
@@ -83,16 +83,16 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handlePick(item.suit)}
-                    className={`flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl border transition-all active:scale-95 cursor-pointer ${
+                    className={`flex flex-col items-center justify-center py-3.5 px-2 rounded-xl border transition-transform transition-colors active:scale-95 cursor-pointer ${
                       isSelected
-                        ? 'bg-white/20 border-white text-white shadow-lg'
-                        : 'bg-white/[0.05] border-white/[0.08] hover:bg-white/[0.1] hover:border-white/20'
+                        ? 'bg-neutral-800 border-white text-white'
+                        : 'bg-neutral-950 border-neutral-800 hover:bg-neutral-800 hover:border-neutral-700'
                     }`}
                   >
                     <span className={`text-2xl ${item.color} leading-none mb-1`}>
                       {item.symbol}
                     </span>
-                    <span className="text-[10px] font-medium tracking-wide text-white/70">
+                    <span className="text-[10px] font-medium tracking-wide text-neutral-400">
                       {item.label}
                     </span>
                   </button>
@@ -102,8 +102,8 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
           </div>
         ) : (
           <div className="py-4 flex flex-col items-center">
-            <div className="flex items-center gap-2 text-sm text-white/80">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <div className="flex items-center gap-2.5 text-sm text-neutral-300">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
               <span>Waiting for {callerPlayer?.nickname || 'Caller'} to choose trump</span>
             </div>
           </div>

@@ -18,12 +18,12 @@ export const ShuffleDistributionOverlay: React.FC<ShuffleDistributionOverlayProp
     const dealTimer = setTimeout(() => {
       setPhase('dealing');
       soundService.playCardDeal();
-    }, 600);
+    }, 500);
 
     const finishTimer = setTimeout(() => {
       setPhase('done');
       onAnimationComplete();
-    }, 1300);
+    }, 1100);
 
     return () => {
       clearTimeout(dealTimer);
@@ -36,34 +36,28 @@ export const ShuffleDistributionOverlay: React.FC<ShuffleDistributionOverlayProp
   return (
     <div
       onClick={onAnimationComplete}
-      className="absolute inset-0 z-40 flex items-center justify-center pointer-events-auto cursor-pointer animate-fade-in"
+      className="absolute inset-0 z-40 flex items-center justify-center pointer-events-auto cursor-pointer animate-fade-in select-none"
     >
       <div className="flex flex-col items-center">
         {phase === 'shuffling' ? (
-          <div className="relative w-20 h-28 flex items-center justify-center">
-            {/* Shuffling Deck Riffle Animation */}
-            <div className="absolute w-16 h-24 rounded-xl bg-slate-100 border border-slate-300 shadow-2xl animate-shuffle-1 flex items-center justify-center text-slate-800 font-bold text-xs">
-              ♠
-            </div>
-            <div className="absolute w-16 h-24 rounded-xl bg-slate-100 border border-slate-300 shadow-2xl animate-shuffle-2 flex items-center justify-center text-rose-600 font-bold text-xs">
-              ♥
-            </div>
-            <div className="absolute w-16 h-24 rounded-xl bg-blue-700 border-2 border-white/20 shadow-xl flex items-center justify-center text-white/50 text-xs">
-              CODE
-            </div>
+          <div className="relative w-16 h-24 flex items-center justify-center">
+            {/* Split deck animation */}
+            <div className="absolute w-12 h-18 rounded-lg bg-[#18202f] border border-neutral-600 transform -translate-x-3 -rotate-6 transition-transform" />
+            <div className="absolute w-12 h-18 rounded-lg bg-[#18202f] border border-neutral-600 transform translate-x-3 rotate-6 transition-transform" />
+            <div className="absolute w-12 h-18 rounded-lg bg-[#18202f] border border-neutral-500" />
           </div>
         ) : (
-          <div className="relative w-36 h-36 flex items-center justify-center">
-            {/* Cards Flying Outwards to 4 Seats */}
-            <div className="absolute w-12 h-18 rounded-lg bg-blue-700 border border-white/30 shadow-xl transition-all duration-500 transform -translate-y-16 opacity-80" />
-            <div className="absolute w-12 h-18 rounded-lg bg-blue-700 border border-white/30 shadow-xl transition-all duration-500 transform translate-y-16 opacity-80" />
-            <div className="absolute w-12 h-18 rounded-lg bg-blue-700 border border-white/30 shadow-xl transition-all duration-500 transform -translate-x-16 opacity-80" />
-            <div className="absolute w-12 h-18 rounded-lg bg-blue-700 border border-white/30 shadow-xl transition-all duration-500 transform translate-x-16 opacity-80" />
+          <div className="relative w-28 h-28 flex items-center justify-center">
+            {/* 4 Cards sliding to the 4 seats */}
+            <div className="absolute w-10 h-14 rounded-md bg-[#18202f] border border-neutral-600 transform -translate-y-12 opacity-80 transition-transform duration-300" />
+            <div className="absolute w-10 h-14 rounded-md bg-[#18202f] border border-neutral-600 transform translate-y-12 opacity-80 transition-transform duration-300" />
+            <div className="absolute w-10 h-14 rounded-md bg-[#18202f] border border-neutral-600 transform -translate-x-12 opacity-80 transition-transform duration-300" />
+            <div className="absolute w-10 h-14 rounded-md bg-[#18202f] border border-neutral-600 transform translate-x-12 opacity-80 transition-transform duration-300" />
           </div>
         )}
 
-        <div className="mt-3 px-3 py-1 rounded-full bg-neutral-900/80 border border-white/10 text-[11px] text-white/70 font-medium backdrop-blur-xl">
-          {phase === 'shuffling' ? 'Shuffling...' : 'Dealing...'}
+        <div className="mt-3 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-300">
+          {phase === 'shuffling' ? 'Shuffling deck' : 'Dealing cards'}
         </div>
       </div>
     </div>

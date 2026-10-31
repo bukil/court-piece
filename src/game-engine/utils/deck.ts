@@ -20,10 +20,10 @@ export const RANK_VALUES: Record<Rank, number> = {
 };
 
 export const SUIT_SYMBOLS: Record<Suit, string> = {
-  spades: '♠',
-  hearts: '♥',
-  diamonds: '♦',
-  clubs: '♣',
+  spades: '♠', // taste-skill-ignore
+  hearts: '♥', // taste-skill-ignore
+  diamonds: '♦', // taste-skill-ignore
+  clubs: '♣', // taste-skill-ignore
 };
 
 export const SUIT_COLORS: Record<Suit, string> = {

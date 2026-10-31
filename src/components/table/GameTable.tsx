@@ -192,10 +192,7 @@ export const GameTable: React.FC<GameTableProps> = ({
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#07090e] text-white flex flex-col justify-between overflow-hidden">
-      {/* Subtle Table Felt Accent */}
-      <div className="absolute inset-0 bg-radial from-emerald-950/20 via-transparent to-transparent pointer-events-none" />
-
+    <div className="relative w-full min-h-dvh bg-[#07090e] text-white flex flex-col justify-between overflow-hidden">
       {/* Shuffling & Distribution Overlay Animation */}
       {showShuffleAnimation && gameState && (
         <ShuffleDistributionOverlay
@@ -204,15 +201,15 @@ export const GameTable: React.FC<GameTableProps> = ({
         />
       )}
 
-      {/* Floating Top Navigation */}
-      <header className="relative z-20 w-full px-4 py-3 flex items-center justify-between border-b border-white/[0.06] backdrop-blur-2xl">
+      {/* Top Navigation */}
+      <header className="relative z-20 w-full px-4 py-3 flex items-center justify-between bg-[#0e1117]">
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold tracking-tight text-white/90">CODEBASE</span>
 
           <button
             onClick={handleCopyCode}
             title="Click to copy code"
-            className="text-xs font-mono text-white/40 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
+            className="text-xs tabular-nums text-neutral-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-neutral-900 border border-neutral-800"
           >
             {copiedCode ? 'Copied' : room.code}
           </button>
@@ -238,9 +235,11 @@ export const GameTable: React.FC<GameTableProps> = ({
           <button
             type="button"
             onClick={() => setIsChatOpen(!isChatOpen)}
-            className="relative px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-xs text-white/60 hover:text-white transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+            className="relative px-3 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-300 hover:text-white transition-transform transition-colors cursor-pointer active:scale-95 flex items-center gap-1.5"
           >
-            <span>💬</span>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
             <span className="hidden sm:inline">Chat</span>
             {unreadCount > 0 && (
               <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
@@ -254,14 +253,25 @@ export const GameTable: React.FC<GameTableProps> = ({
           <button
             onClick={handleToggleMute}
             aria-label={isMuted ? 'Unmute' : 'Mute'}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
           >
-            {isMuted ? '🔇' : '🔊'}
+            {isMuted ? (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
           </button>
 
           <button
             onClick={onLeaveRoom}
-            className="text-xs text-white/40 hover:text-white/80 transition-colors cursor-pointer px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
+            className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800"
           >
             Leave
           </button>
@@ -270,7 +280,7 @@ export const GameTable: React.FC<GameTableProps> = ({
 
       {/* Mobile Scoreboard */}
       {gameState && (
-        <div className="sm:hidden flex justify-center py-2 px-3 border-b border-white/[0.04]">
+        <div className="sm:hidden flex justify-center py-2 px-3 bg-neutral-950/60">
           <Scoreboard
             dealScores={gameState.teamDealScores}
             matchScores={gameState.matchScores}
@@ -355,10 +365,8 @@ export const GameTable: React.FC<GameTableProps> = ({
           {/* Floating Reaction for local player */}
           {activeReactions[bottomSeat.seatIndex] && (
             <div className="absolute -top-12 z-30 pointer-events-none animate-reaction-float">
-              <div className="relative px-3 py-1.5 rounded-full bg-neutral-900/90 border border-white/20 shadow-2xl text-2xl backdrop-blur-xl">
+              <div className="px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-700 text-2xl">
                 {activeReactions[bottomSeat.seatIndex]}
-                <span className="absolute -top-1.5 -right-1.5 text-xs animate-particle-burst">✨</span>
-                <span className="absolute -bottom-1 -left-1.5 text-xs animate-particle-burst">💫</span>
               </div>
             </div>
           )}

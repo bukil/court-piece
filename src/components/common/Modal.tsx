@@ -26,22 +26,24 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-sm bg-neutral-900/90 border border-white/10 rounded-3xl p-6 shadow-2xl text-white backdrop-blur-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-neutral-100 max-h-[90dvh] overflow-y-auto">
         {title ? (
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.08]">
-            <h2 className="text-sm font-semibold tracking-tight text-white">
+          <div className="flex items-center justify-between pb-3 mb-4">
+            <h2 className="text-sm font-medium tracking-tight text-white">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-white/40 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+              className="text-neutral-400 hover:text-white p-1 rounded-md hover:bg-neutral-800 transition-colors"
               aria-label="Close"
             >
-              ✕
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                <path d="M2 2L12 12M12 2L2 12" />
+              </svg>
             </button>
           </div>
         ) : null}

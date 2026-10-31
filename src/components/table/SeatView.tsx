@@ -36,40 +36,38 @@ export const SeatView: React.FC<SeatViewProps> = ({
 
   if (!player) {
     return (
-      <div className="flex flex-col items-center justify-center p-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-white/30 min-w-[110px] select-none">
-        <span className="text-[11px]">Seat {seatIndex + 1}</span>
+      <div className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-dashed border-neutral-800 bg-neutral-900/30 text-neutral-500 min-w-[105px] select-none">
+        <span className="text-xs">Seat {seatIndex + 1}</span>
       </div>
     );
   }
 
   const turnClass = isTurn
-    ? 'ring-1 ring-amber-400/80 shadow-lg shadow-amber-500/10 bg-white/[0.08]'
-    : 'bg-white/[0.03] border-white/[0.08]';
+    ? 'border-amber-400/90 bg-neutral-900 ring-1 ring-amber-400/40'
+    : 'border-neutral-800 bg-neutral-900/70';
 
   return (
     <div
-      className={`relative flex flex-col items-center p-2.5 rounded-2xl border backdrop-blur-xl transition-all select-none min-w-[110px] sm:min-w-[130px] ${turnClass}`}
+      className={`relative flex flex-col items-center p-2.5 rounded-xl border transition-colors select-none min-w-[110px] sm:min-w-[125px] ${turnClass}`}
     >
-      {/* Floating Reaction */}
+      {/* Floating Reaction Pill */}
       {activeReaction && (
         <div
           key={activeReaction}
-          className="absolute -top-12 z-30 flex items-center justify-center pointer-events-none animate-reaction-float"
+          className="absolute -top-9 z-30 flex items-center justify-center pointer-events-none animate-reaction-float"
         >
-          <div className="relative px-3 py-1.5 rounded-full bg-neutral-900/90 border border-white/20 shadow-2xl text-2xl backdrop-blur-xl">
+          <div className="px-2.5 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-lg">
             {activeReaction}
-            <span className="absolute -top-1.5 -right-1.5 text-xs animate-particle-burst">✨</span>
-            <span className="absolute -bottom-1 -left-1.5 text-xs animate-particle-burst">💫</span>
           </div>
         </div>
       )}
 
       {/* Top info */}
-      <div className="flex items-center justify-between w-full mb-1 text-[10px] text-white/40">
+      <div className="flex items-center justify-between w-full mb-1 text-[10px] text-neutral-400">
         <div className="flex items-center gap-1">
-          {player.isHost && <span className="text-amber-400">★</span>}
+          {player.isHost && <span className="text-amber-400 font-medium">H</span>}
           {isCaller && <span className="text-amber-300 font-medium">T</span>}
-          {isDealer && <span className="text-white/40 font-medium">D</span>}
+          {isDealer && <span className="text-neutral-500 font-medium">D</span>}
         </div>
         <span>{getRelationText()}</span>
       </div>
@@ -81,7 +79,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
           <span className="text-xs font-medium text-white truncate">
             {player.nickname}
           </span>
-          <span className="text-[10px] text-white/40 truncate">
+          <span className="text-[10px] text-neutral-400 truncate">
             {player.teamId === 0 ? 'Team 1' : 'Team 2'}
           </span>
         </div>
@@ -89,7 +87,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
 
       {/* Card count for other players */}
       {!isLocalPlayer && cardCount > 0 && (
-        <div className="mt-2 pt-1 border-t border-white/[0.06] w-full flex justify-center">
+        <div className="mt-2 w-full flex justify-center">
           <CardBack
             count={cardCount}
             size="sm"

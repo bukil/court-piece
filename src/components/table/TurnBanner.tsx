@@ -13,14 +13,14 @@ export const TurnBanner: React.FC<TurnBannerProps> = ({
   return (
     <div
       aria-live="polite"
-      className="inline-flex items-center gap-2 bg-neutral-900/60 border border-white/[0.08] rounded-full px-3.5 py-1 text-xs backdrop-blur-xl"
+      className="inline-flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-full px-3 py-1 text-xs select-none"
     >
       <span
         className={`w-1.5 h-1.5 rounded-full ${
-          isLocalPlayerTurn ? 'bg-amber-400 animate-pulse' : 'bg-white/30'
+          isLocalPlayerTurn ? 'bg-amber-400' : 'bg-neutral-600'
         }`}
       />
-      <span className={isLocalPlayerTurn ? 'text-amber-300 font-medium' : 'text-white/60'}>
+      <span className={isLocalPlayerTurn ? 'text-amber-300 font-medium' : 'text-neutral-400'}>
         {isLocalPlayerTurn ? 'Your Turn' : `${currentTurnPlayerName}'s Turn`}
       </span>
     </div>

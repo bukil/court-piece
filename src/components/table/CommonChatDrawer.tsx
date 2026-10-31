@@ -11,12 +11,12 @@ interface CommonChatDrawerProps {
 }
 
 const PRESET_CHIPS = [
-  'Well played! 👏',
-  'Nice trick! 🎯',
-  'Good game! 🤝',
-  'Trump power! 👑',
-  'Oops! 😅',
-  'Let’s go! 🔥',
+  'Well played!',
+  'Nice trick',
+  'Good game',
+  'Trump power',
+  'Oops',
+  'Let’s go',
 ];
 
 export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
@@ -65,40 +65,44 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
   };
 
   const getTeamBadge = (teamId: TeamId) => {
-    return teamId === 0 ? 'text-emerald-400' : 'text-indigo-400';
+    return teamId === 0 ? 'text-emerald-400' : 'text-amber-400';
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-end sm:p-4 bg-black/60 backdrop-blur-xl animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-end sm:p-4 bg-black/75 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-xs h-[75vh] sm:h-[520px] bg-neutral-900/95 border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl backdrop-blur-2xl"
+        className="w-full sm:max-w-xs h-[75vh] sm:h-[520px] bg-neutral-900 sm:border border-neutral-800 rounded-t-2xl sm:rounded-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between p-4 bg-neutral-900">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tracking-tight text-white">Chat</span>
-            <span className="text-[10px] text-white/40">({messages.length})</span>
+            <span className="text-xs text-neutral-500">({messages.length})</span>
           </div>
           <button
             onClick={onClose}
-            className="text-white/40 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Close"
+            className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
           >
-            ✕
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
         {/* Quick preset chips */}
-        <div className="flex gap-1.5 p-2.5 overflow-x-auto no-scrollbar border-b border-white/[0.04]">
+        <div className="flex gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar bg-neutral-950/40">
           {PRESET_CHIPS.map((chip) => (
             <button
               key={chip}
               type="button"
               onClick={() => handleSend(chip)}
-              className="px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.06] text-[11px] text-white/70 whitespace-nowrap active:scale-95 transition-all cursor-pointer"
+              className="px-2.5 py-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-300 whitespace-nowrap active:scale-95 transition-transform transition-colors cursor-pointer"
             >
               {chip}
             </button>
@@ -108,7 +112,7 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
         {/* Messages List */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 no-scrollbar">
           {messages.length === 0 ? (
-            <div className="text-center text-xs text-white/30 pt-16">
+            <div className="text-center text-xs text-neutral-500 pt-16">
               No messages yet.<br />Tap a preset or say hello!
             </div>
           ) : (
@@ -119,7 +123,7 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
                   key={msg.id}
                   className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                 >
-                  <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-white/40">
+                  <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-neutral-400">
                     <span className={`font-medium ${getTeamBadge(msg.teamId)}`}>
                       {msg.nickname}
                     </span>
@@ -132,10 +136,10 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
                     </span>
                   </div>
                   <div
-                    className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-xs ${
+                    className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs ${
                       isMe
                         ? 'bg-white text-black font-medium'
-                        : 'bg-white/[0.08] text-white border border-white/[0.06]'
+                        : 'bg-neutral-800 text-neutral-100'
                     }`}
                   >
                     {msg.text}
@@ -153,7 +157,7 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
             e.preventDefault();
             handleSend(inputText);
           }}
-          className="p-3 border-t border-white/[0.08] flex items-center gap-2"
+          className="p-3 bg-neutral-950 flex items-center gap-2"
         >
           <input
             type="text"
@@ -161,12 +165,12 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Message..."
             maxLength={100}
-            className="flex-1 px-3.5 py-2 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+            className="flex-1 px-3.5 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            className="px-4 py-2 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+            className="px-4 py-2 rounded-xl bg-white text-black text-xs font-semibold hover:bg-neutral-200 active:scale-95 transition-transform transition-colors cursor-pointer disabled:opacity-40"
           >
             Send
           </button>
@@ -175,3 +179,4 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
     </div>
   );
 };
+

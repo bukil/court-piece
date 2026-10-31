@@ -46,25 +46,25 @@ export const GameResultsModal: React.FC<GameResultsModalProps> = ({
         </h3>
 
         {/* Score comparison */}
-        <div className="w-full flex items-center justify-center gap-6 my-6">
+        <div className="w-full flex items-center justify-around my-6 p-4 rounded-xl bg-neutral-950">
           <div className="flex flex-col items-center">
-            <span className="text-xs text-white/50 mb-1">Team 1</span>
-            <span className="text-3xl font-bold text-white">
+            <span className="text-xs text-neutral-400 mb-1">Team 1</span>
+            <span className="text-3xl font-bold text-white tabular-nums">
               {team0Score.tricksWon}
             </span>
-            <span className="text-[11px] text-white/40 mt-1">
+            <span className="text-[11px] text-neutral-500 mt-1">
               {gameState.matchScores[0]} pts
             </span>
           </div>
 
-          <div className="h-8 w-px bg-white/10" />
+          <span className="text-neutral-600 text-sm">—</span>
 
           <div className="flex flex-col items-center">
-            <span className="text-xs text-white/50 mb-1">Team 2</span>
-            <span className="text-3xl font-bold text-white">
+            <span className="text-xs text-neutral-400 mb-1">Team 2</span>
+            <span className="text-3xl font-bold text-white tabular-nums">
               {team1Score.tricksWon}
             </span>
-            <span className="text-[11px] text-white/40 mt-1">
+            <span className="text-[11px] text-neutral-500 mt-1">
               {gameState.matchScores[1]} pts
             </span>
           </div>
@@ -76,7 +76,7 @@ export const GameResultsModal: React.FC<GameResultsModalProps> = ({
             <button
               type="button"
               onClick={onNextDeal}
-              className="w-full py-3 rounded-2xl bg-white text-black font-medium text-sm hover:bg-white/90 active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full py-3 rounded-xl bg-white text-black font-medium text-sm hover:bg-neutral-200 active:scale-[0.98] transition-transform transition-colors cursor-pointer"
             >
               Next Deal
             </button>
@@ -84,7 +84,7 @@ export const GameResultsModal: React.FC<GameResultsModalProps> = ({
             <button
               type="button"
               onClick={onRematch}
-              className="w-full py-3 rounded-2xl bg-white text-black font-medium text-sm hover:bg-white/90 active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full py-3 rounded-xl bg-white text-black font-medium text-sm hover:bg-neutral-200 active:scale-[0.98] transition-transform transition-colors cursor-pointer"
             >
               Play Again
             </button>

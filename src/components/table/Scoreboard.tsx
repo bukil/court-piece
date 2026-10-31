@@ -24,44 +24,44 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({
     <button
       type="button"
       onClick={onClick}
-      title="Click to view full hand & score record"
-      className="flex items-center gap-3 sm:gap-4 bg-neutral-900/80 hover:bg-neutral-900 border border-white/10 hover:border-white/20 rounded-full px-4 sm:px-5 py-1.5 backdrop-blur-2xl shadow-xl text-xs cursor-pointer transition-all active:scale-95"
+      title="View full hand and score ledger"
+      className="flex items-center gap-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 rounded-full px-3.5 py-1.5 text-xs cursor-pointer transition-colors"
     >
       {/* Team 1 */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-medium text-emerald-400/80">T1</span>
-        <span className="font-semibold text-sm text-white">
+        <span className="text-xs font-medium text-emerald-400">T1</span>
+        <span className="font-semibold text-white">
           {dealScores[0].tricksWon}
         </span>
-        <span className="text-[10px] text-white/40">
+        <span className="text-[10px] text-neutral-400">
           ({matchScores[0]})
         </span>
       </div>
 
-      <div className="h-3 w-px bg-white/10" />
+      <span className="text-neutral-600">&bull;</span>
 
-      {/* Trump & Deal */}
-      <div className="flex items-center gap-1.5">
+      {/* Trump suit */}
+      <div className="flex items-center gap-1">
         {trumpSymbol ? (
-          <span className={`text-base font-bold leading-none ${isRedTrump ? 'text-rose-500' : 'text-white'}`}>
+          <span className={`text-sm font-semibold leading-none ${isRedTrump ? 'text-[#c22026]' : 'text-white'}`}>
             {trumpSymbol}
           </span>
         ) : (
-          <span className="text-[11px] text-white/40">No Trump</span>
+          <span className="text-[11px] text-neutral-500">No Trump</span>
         )}
       </div>
 
-      <div className="h-3 w-px bg-white/10" />
+      <span className="text-neutral-600">&bull;</span>
 
       {/* Team 2 */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-white/40">
+        <span className="text-[10px] text-neutral-400">
           ({matchScores[1]})
         </span>
-        <span className="font-semibold text-sm text-white">
+        <span className="font-semibold text-white">
           {dealScores[1].tricksWon}
         </span>
-        <span className="text-[11px] font-medium text-indigo-400/80">T2</span>
+        <span className="text-xs font-medium text-amber-400">T2</span>
       </div>
     </button>
   );

@@ -14,36 +14,30 @@ export const CardBack: React.FC<CardBackProps> = ({
   const isHorizontal = orientation === 'horizontal';
 
   const sizeClasses = {
-    sm: isHorizontal ? 'w-14 h-10' : 'w-10 h-14',
-    md: isHorizontal ? 'w-18 h-12 sm:w-20 sm:h-14' : 'w-12 h-18 sm:w-16 sm:h-24',
+    sm: isHorizontal ? 'w-13 h-9' : 'w-9 h-13',
+    md: isHorizontal ? 'w-16 h-11 sm:w-18 sm:h-13' : 'w-11 h-16 sm:w-13 sm:h-18',
   }[size];
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      {/* Subtle stacked card behind if count > 1 */}
+      {/* Stack depth if multiple cards held */}
       {count > 1 && (
         <div
-          className={`absolute translate-x-1 translate-y-1 bg-indigo-950 border border-indigo-700/60 rounded-lg shadow-sm ${sizeClasses}`}
+          className={`absolute translate-x-1 translate-y-1 bg-[#1e232d] border border-neutral-700 rounded-lg ${sizeClasses}`}
         />
       )}
 
-      {/* Main card back */}
+      {/* Primary physical card back */}
       <div
-        className={`relative select-none rounded-lg bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 border border-indigo-500/40 shadow-md flex items-center justify-center overflow-hidden ${sizeClasses}`}
+        className={`relative select-none rounded-lg bg-[#18202f] border border-neutral-700 flex items-center justify-center overflow-hidden ${sizeClasses}`}
       >
-        {/* Geometric crosshatch pattern */}
-        <div
-          className="absolute inset-1 border border-indigo-400/20 rounded opacity-60 pointer-events-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle, rgba(165, 180, 252, 0.25) 1px, transparent 1px)',
-            backgroundSize: '6px 6px',
-          }}
-        />
+        {/* Subtle classic card inner frame */}
+        <div className="absolute inset-1 border border-neutral-600/40 rounded pointer-events-none" />
+        <div className="absolute inset-2 border border-neutral-600/20 rounded pointer-events-none" />
 
-        {/* Card count badge */}
+        {/* Card count */}
         {count > 0 && (
-          <span className="relative z-10 text-[10px] sm:text-xs font-mono font-bold px-1.5 py-0.5 rounded-full bg-slate-900/90 text-indigo-200 border border-indigo-500/30">
+          <span className="relative z-10 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-black/80 text-white/90">
             {count}
           </span>
         )}
@@ -51,4 +45,3 @@ export const CardBack: React.FC<CardBackProps> = ({
     </div>
   );
 };
-

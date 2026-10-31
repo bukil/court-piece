@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   color-scheme: dark;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: #07090e;
-  color: #f8fafc;
+  background-color: #0b0d11;
+  color: #ededed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -36,93 +36,43 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.15s ease-out forwards;
+  animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes reactionFloat {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.6);
+    transform: translateY(6px);
   }
   20% {
     opacity: 1;
-    transform: translateY(-8px) scale(1.25);
+    transform: translateY(-4px);
   }
-  70% {
+  75% {
     opacity: 1;
-    transform: translateY(-24px) scale(1.1);
+    transform: translateY(-16px);
   }
   100% {
     opacity: 0;
-    transform: translateY(-44px) scale(0.85);
+    transform: translateY(-26px);
   }
 }
 
 .animate-reaction-float {
-  animation: reactionFloat 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: reactionFloat 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes particleBurst {
-  0% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
+@keyframes dealSlideIn {
+  from {
     opacity: 0;
-    transform: translate(var(--tx, 15px), var(--ty, -25px)) scale(0);
+    transform: translateY(-24px);
   }
-}
-
-.animate-particle-burst {
-  animation: particleBurst 0.9s ease-out forwards;
-}
-
-@keyframes shuffleCard {
-  0%, 100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(-14px, -6px) rotate(-6deg);
-  }
-  50% {
-    transform: translate(14px, -10px) rotate(6deg);
-  }
-  75% {
-    transform: translate(-8px, -4px) rotate(-3deg);
-  }
-}
-
-.animate-shuffle-1 {
-  animation: shuffleCard 0.6s ease-in-out infinite;
-}
-.animate-shuffle-2 {
-  animation: shuffleCard 0.6s ease-in-out infinite reverse;
-}
-
-@keyframes dealFly {
-  0% {
-    opacity: 0;
-    transform: translateY(-40px) scale(0.7);
-  }
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-.animate-deal-fly {
-  animation: dealFly 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes trumpPulse {
-  0%, 100% {
-    box-shadow: 0 0 14px rgba(251, 191, 36, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 24px rgba(251, 191, 36, 0.85);
-  }
-}
-
-.animate-trump-aura {
-  animation: trumpPulse 2s ease-in-out infinite;
+.animate-deal-slide {
+  animation: dealSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

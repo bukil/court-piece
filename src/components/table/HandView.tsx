@@ -146,7 +146,7 @@ export const HandView: React.FC<HandViewProps> = ({
 
       {/* Cards fan container */}
       <div className="w-full overflow-x-auto pb-3 pt-2 px-2 flex justify-center no-scrollbar">
-        <div className="flex items-end -space-x-3 sm:-space-x-4 md:-space-x-5 transition-all">
+        <div className="flex items-end -space-x-3 sm:-space-x-4 md:-space-x-5 transition-transform">
           {cards.map((card, idx) => {
             const check = isCardPlayable(card);
             const isSelected = selectedCardId === card.id;
@@ -194,7 +194,7 @@ export const HandView: React.FC<HandViewProps> = ({
               const card = cards.find((c) => c.id === selectedCardId);
               if (card) executePlay(card);
             }}
-            className="px-5 py-1.5 rounded-full bg-white text-black font-medium text-xs hover:bg-white/90 active:scale-95 transition-all cursor-pointer shadow-lg disabled:opacity-50"
+            className="px-5 py-1.5 rounded-full bg-white text-black font-medium text-xs hover:bg-neutral-200 active:scale-95 transition-transform transition-colors cursor-pointer disabled:opacity-50"
           >
             {isLoading ? '...' : 'Play Card'}
           </button>

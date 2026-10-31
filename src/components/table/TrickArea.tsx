@@ -20,55 +20,55 @@ export const TrickArea: React.FC<TrickAreaProps> = ({ trick, getRelativePosition
   const leadSymbol = trick.leadSuit ? SUIT_SYMBOLS[trick.leadSuit] : null;
 
   return (
-    <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-white/[0.015] border border-white/[0.04] flex items-center justify-center">
-      {/* Subtle Lead Suit Glyph in center */}
+    <div className="relative w-52 h-52 sm:w-60 sm:h-60 rounded-full bg-[#11141b] border border-neutral-800/80 flex items-center justify-center">
+      {/* Lead suit indicator in center */}
       {leadSymbol && (
-        <div className="absolute flex items-center justify-center pointer-events-none text-white/[0.06] text-4xl sm:text-5xl font-bold select-none">
+        <div className="absolute flex items-center justify-center pointer-events-none text-neutral-700/60 text-4xl sm:text-5xl font-semibold select-none">
           {leadSymbol}
         </div>
       )}
 
-      {/* Top played card (Partner) */}
-      <div className="absolute top-2 sm:top-3">
+      {/* Top card (Partner) */}
+      <div className="absolute top-2.5">
         {playedByPosition.top ? (
-          <div className="animate-fade-in shadow-xl">
+          <div className="animate-fade-in">
             <CardView card={playedByPosition.top.card} size="sm" />
           </div>
         ) : (
-          <div className="w-12 h-18 rounded-lg border border-dashed border-white/[0.04]" />
+          <div className="w-11 h-16 rounded-md border border-dashed border-neutral-800/80" />
         )}
       </div>
 
-      {/* Left played card (Opponent 1) */}
-      <div className="absolute left-2 sm:left-3">
+      {/* Left card (Opponent 1) */}
+      <div className="absolute left-2.5">
         {playedByPosition.left ? (
-          <div className="animate-fade-in shadow-xl">
+          <div className="animate-fade-in">
             <CardView card={playedByPosition.left.card} size="sm" />
           </div>
         ) : (
-          <div className="w-12 h-18 rounded-lg border border-dashed border-white/[0.04]" />
+          <div className="w-11 h-16 rounded-md border border-dashed border-neutral-800/80" />
         )}
       </div>
 
-      {/* Right played card (Opponent 2) */}
-      <div className="absolute right-2 sm:right-3">
+      {/* Right card (Opponent 2) */}
+      <div className="absolute right-2.5">
         {playedByPosition.right ? (
-          <div className="animate-fade-in shadow-xl">
+          <div className="animate-fade-in">
             <CardView card={playedByPosition.right.card} size="sm" />
           </div>
         ) : (
-          <div className="w-12 h-18 rounded-lg border border-dashed border-white/[0.04]" />
+          <div className="w-11 h-16 rounded-md border border-dashed border-neutral-800/80" />
         )}
       </div>
 
-      {/* Bottom played card (Local player) */}
-      <div className="absolute bottom-2 sm:bottom-3">
+      {/* Bottom card (Local player) */}
+      <div className="absolute bottom-2.5">
         {playedByPosition.bottom ? (
-          <div className="animate-fade-in shadow-xl">
+          <div className="animate-fade-in">
             <CardView card={playedByPosition.bottom.card} size="sm" />
           </div>
         ) : (
-          <div className="w-12 h-18 rounded-lg border border-dashed border-white/[0.04]" />
+          <div className="w-11 h-16 rounded-md border border-dashed border-neutral-800/80" />
         )}
       </div>
     </div>
