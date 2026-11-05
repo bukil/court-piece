@@ -7,10 +7,12 @@ import { WaitingLobby } from './components/lobby/WaitingLobby';
 import { GameTable } from './components/table/GameTable';
 import { GameResultsModal } from './components/results/GameResultsModal';
 import './App.css';
+import { RulesNoticeModal } from './components/common/RulesNoticeModal';
 
 const SESSION_ROOM_KEY = 'codebase_active_room_id';
 
 export function App() {
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [identity, setIdentity] = useState<PlayerIdentity>(authService.getIdentity());
   const [currentRoom, setCurrentRoom] = useState<RoomDocument | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -164,8 +166,10 @@ export function App() {
 
   return (
     <div className="min-h-dvh w-full bg-[#07090e] flex flex-col font-sans selection:bg-white/20 selection:text-white">
+      <RulesNoticeModal isOpen={rulesOpen} onClose={() => setRulesOpen(false)} />
       {!currentRoom && (
         <WelcomeScreen
+          onOpenRulesModal={() => setRulesOpen(true)}
           currentNickname={identity.nickname}
           onUpdateNickname={handleUpdateNickname}
           onCreateGame={handleCreateGame}
@@ -177,6 +181,7 @@ export function App() {
         <WaitingLobby
           room={currentRoom}
           localPlayerId={identity.id}
+          onOpenRulesModal={() => setRulesOpen(true)}
           onStartGame={handleStartGame}
           onLeaveRoom={handleLeaveRoom}
         />
@@ -185,6 +190,7 @@ export function App() {
       {isPlaying && (
         <>
           <GameTable
+            onOpenRulesModal={() => setRulesOpen(true)}
             room={currentRoom}
             localPlayerId={identity.id}
             onLeaveRoom={handleLeaveRoom}

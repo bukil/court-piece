@@ -1,3 +1,4 @@
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChatMessage, TeamId } from '../../types/game';
 import { soundService } from '../../services/soundService';
@@ -48,6 +49,8 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
     }
   }, [isOpen]);
 
+  const dialogRef = useDialogFocus(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const handleSend = async (textToSend: string) => {
@@ -70,6 +73,11 @@ export const CommonChatDrawer: React.FC<CommonChatDrawerProps> = ({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      ref={dialogRef}
+      tabIndex={-1}
+      aria-label="Table chat"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-end sm:p-4 bg-black/75 animate-fade-in"
       onClick={onClose}
     >

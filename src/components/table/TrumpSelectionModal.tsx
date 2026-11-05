@@ -1,3 +1,4 @@
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import React, { useState } from 'react';
 import type { Card, Suit, Player } from '../../types/game';
 import { CardView } from './CardView';
@@ -21,6 +22,8 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
   const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const dialogRef = useDialogFocus(isOpen);
 
   if (!isOpen) return null;
 
@@ -47,6 +50,9 @@ export const TrumpSelectionModal: React.FC<TrumpSelectionModalProps> = ({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
+      aria-label="Choose trump"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 animate-fade-in"
       role="dialog"
       aria-modal="true"

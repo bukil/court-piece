@@ -1,5 +1,4 @@
-import { signInAnonymously, onAuthStateChanged, type User } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from './firebaseConfig';
+import { isFirebaseConfigured } from './firebaseSettings';
 
 const LOCAL_STORAGE_PLAYER_ID_KEY = 'codebase_player_id';
 const LOCAL_STORAGE_NICKNAME_KEY = 'codebase_player_nickname';
@@ -41,23 +40,29 @@ class AuthService {
       nickname: savedNickname,
     };
 
-    // If live Firebase Auth is available, synchronize with anonymous auth
-    if (isFirebaseConfigured() && auth) {
-      const activeAuth = auth;
-      onAuthStateChanged(activeAuth, (user: User | null) => {
+    // Local tables do not need to download or initialize the Firebase SDK.
+    if (isFirebaseConfigured() && localStorage.getItem('codebase_force_simulator') !== 'true') {
+      void this.initializeCloudAuth();
+    }
+  }
+
+  private async initializeCloudAuth(): Promise<void> {
+    try {
+      const [{ auth }, { onAuthStateChanged, signInAnonymously }] = await Promise.all([
+        import('./firebaseConfig'), import('firebase/auth'),
+      ]);
+      if (!auth) return;
+      onAuthStateChanged(auth, user => {
         if (user) {
-          this.currentIdentity = {
-            id: user.uid,
-            nickname: this.currentIdentity.nickname,
-          };
+          this.currentIdentity = { id: user.uid, nickname: this.currentIdentity.nickname };
           localStorage.setItem(LOCAL_STORAGE_PLAYER_ID_KEY, user.uid);
           this.notify();
         } else {
-          signInAnonymously(activeAuth).catch((err) => {
-            console.warn('[AuthService] Anonymous sign-in error, using local identity:', err);
-          });
+          signInAnonymously(auth).catch(error => console.warn('[AuthService] Anonymous sign-in error, using local identity:', error));
         }
       });
+    } catch (error) {
+      console.warn('[AuthService] Could not initialize cloud authentication:', error);
     }
   }
 

@@ -1,3 +1,4 @@
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import React from 'react';
 import type { PublicGameState, Player } from '../../types/game';
 import { SUIT_SYMBOLS } from '../../game-engine/utils/deck';
@@ -15,6 +16,8 @@ export const ScoreRecordDrawer: React.FC<ScoreRecordDrawerProps> = ({
   gameState,
   seats,
 }) => {
+  const dialogRef = useDialogFocus(isOpen, onClose);
+
   if (!isOpen || !gameState) return null;
 
   const t0Tricks = gameState.teamDealScores[0].tricksWon;
@@ -28,6 +31,11 @@ export const ScoreRecordDrawer: React.FC<ScoreRecordDrawerProps> = ({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      ref={dialogRef}
+      tabIndex={-1}
+      aria-label="Score and hand record"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 animate-fade-in"
       onClick={onClose}
     >

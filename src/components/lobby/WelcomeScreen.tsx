@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CardView } from '../table/CardView';
 import { roomService } from '../../services/roomService';
 
 interface WelcomeScreenProps {
@@ -70,10 +71,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-dvh bg-[#0b0d11] text-neutral-100 flex flex-col justify-between p-6 sm:p-8">
+    <div className="welcome-screen">
       {/* Header bar */}
-      <header className="relative z-10 flex items-center justify-between max-w-sm w-full mx-auto">
-        <span className="text-xs text-neutral-400 font-medium">Court Piece</span>
+      <header className="welcome-header">
+        <span className="welcome-wordmark"><span aria-hidden="true">♧</span> Court Piece</span>
         <div className="flex items-center gap-3">
           {onOpenRulesModal && (
             <button
@@ -89,21 +90,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             onClick={() => roomService.setForceSimulator(backendMode === 'firebase')}
             className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-neutral-900 border border-neutral-800"
           >
-            {backendMode === 'firebase' ? 'Cloud' : 'Simulator'}
+            {backendMode === 'firebase' ? 'Online tables' : 'Local tables'}
           </button>
         </div>
       </header>
 
       {/* Main card */}
-      <main className="relative z-10 max-w-sm w-full mx-auto my-auto flex flex-col items-center">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
-            Court Piece
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">Single Sir &bull; 4 Players &bull; 2 Teams</p>
+      <main className="welcome-main">
+        <div className="welcome-story">
+          <div className="welcome-deck" aria-hidden="true">
+            <div><CardView card={{ id: 'welcome-k', rank: 'K', value: 13, suit: 'spades' }} size="lg" /></div>
+            <div><CardView card={{ id: 'welcome-q', rank: 'Q', value: 12, suit: 'hearts' }} size="lg" /></div>
+            <div><CardView card={{ id: 'welcome-a', rank: 'A', value: 14, suit: 'clubs' }} size="lg" /></div>
+          </div>
+          <h1>Good company.<br />Great hands.</h1>
+          <p>A round of Court Piece, a familiar rivalry.<br />Bring your people. We’ll deal the cards.</p>
+          <div className="welcome-facts"><span>4 players</span><span>2 teams</span><span>First to 7</span></div>
         </div>
-
-        <div className="w-full bg-[#13161c] border border-neutral-800 rounded-2xl p-6">
+        <div className="welcome-form"><h2>Take your seat</h2><p>Create a private table or join your friends.</p>
           {errorMessage && (
             <div className="mb-4 text-xs text-rose-400 text-center font-medium">
               {errorMessage}
@@ -113,7 +117,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           {/* Nickname input */}
           <div className="mb-4">
             <label htmlFor="nickname" className="block text-xs text-neutral-400 mb-1.5 font-medium">
-              Player Name
+              Your name
             </label>
             <input
               id="nickname"
@@ -133,16 +137,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             onClick={handleCreate}
             className="w-full py-2.5 rounded-xl bg-white text-black font-medium text-xs sm:text-sm hover:bg-neutral-200 active:scale-98 transition-transform transition-colors cursor-pointer disabled:opacity-40"
           >
-            {isCreating ? 'Creating room...' : 'Create Room'}
+            {isCreating ? 'Creating room...' : 'Create a table'}
           </button>
 
           <div className="my-5 text-center text-xs text-neutral-500 font-medium">
-            or join an existing table
+            Have an invite? Join their table.
           </div>
 
           {/* Join Form */}
           <form onSubmit={handleJoin} className="flex gap-2">
             <input
+              aria-label="6-character room code"
               id="roomCode"
               type="text"
               value={roomCode}
@@ -162,8 +167,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
       </main>
 
-      <footer className="relative z-10 text-center text-xs text-neutral-500">
-        4-player trick-taking card game
+      <footer className="welcome-footer">
+        Made for a little friendly competition.
       </footer>
     </div>
   );

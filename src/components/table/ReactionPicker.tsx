@@ -1,44 +1,19 @@
-import React, { useState } from 'react';
-
-interface ReactionPickerProps {
-  onSendReaction: (emoji: string) => void;
-}
-
-// User-sent gameplay reactions (chat / table reactions)
-const REACTIONS = ['👏', '🔥', '👑', '😮', '😂', '🎯']; // taste-skill-ignore
-
+import React, { useEffect, useRef, useState } from 'react';
+interface ReactionPickerProps { onSendReaction: (emoji: string) => void; }
+const REACTIONS = [ ['👏', 'Well played'], ['🔥', 'On fire'], ['👑', 'Royal move'], ['😮', 'Surprised'], ['😂', 'Laugh'], ['🎯', 'Perfect play'] ];
 export const ReactionPicker: React.FC<ReactionPickerProps> = ({ onSendReaction }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  const handleSelect = (emoji: string) => {
-    onSendReaction(emoji);
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="relative inline-flex items-center">
-      {isOpen && (
-        <div className="absolute bottom-full mb-2 right-0 flex items-center gap-1 p-1 rounded-full bg-neutral-900 border border-neutral-800 animate-fade-in z-40">
-          {REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => handleSelect(emoji)}
-              className="w-8 h-8 flex items-center justify-center text-base rounded-full hover:bg-neutral-800 active:scale-95 transition-transform transition-colors cursor-pointer"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-2.5 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-      >
-        React
-      </button>
-    </div>
-  );
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const close = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setIsOpen(false); };
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') { setIsOpen(false); root.current?.querySelector<HTMLButtonElement>('.reaction-toggle')?.focus(); } };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
+  }, [isOpen]);
+  return <div ref={root} className="reaction-picker">
+    <button type="button" className="tool-button reaction-toggle" onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen} aria-controls="table-reactions">React <span aria-hidden="true">☺</span></button>
+    {isOpen && <div id="table-reactions" className="reaction-menu" role="group" aria-label="Send a reaction">{REACTIONS.map(([emoji, label]) => <button key={emoji} type="button" aria-label={label} title={label} onClick={() => { onSendReaction(emoji); setIsOpen(false); }}>{emoji}</button>)}</div>}
+  </div>;
 };

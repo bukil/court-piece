@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import type {
   RoomDocument,
   Card,
@@ -31,6 +31,7 @@ export const GameTable: React.FC<GameTableProps> = ({
   room,
   localPlayerId,
   onLeaveRoom,
+  onOpenRulesModal,
 }) => {
   const [hand, setHand] = useState<Card[]>([]);
   const [initialCards, setInitialCards] = useState<Card[]>([]);
@@ -38,7 +39,9 @@ export const GameTable: React.FC<GameTableProps> = ({
   const [isMuted, setIsMuted] = useState(soundService.getIsMuted());
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeReactions, setActiveReactions] = useState<Record<number, string | null>>({});
+  const [activeReactions, setActiveReactions] = useState<Record<number, { emoji: string; id: string } | null>>({});
+  const reactionTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const seenReaction = useRef<string | null>(null);
 
   // Modals / Drawers
   const [isScoreDrawerOpen, setIsScoreDrawerOpen] = useState(false);
@@ -73,17 +76,25 @@ export const GameTable: React.FC<GameTableProps> = ({
     }
   }, [gameState?.currentTurnSeatIndex, localSeatIndex, gameState?.status]);
 
-  // Real-time reaction animation across all 4 screens
+  // Each seat owns its expiry timer, so overlapping reactions never leave a bubble behind.
+  const lastReaction = gameState?.lastReaction;
   useEffect(() => {
-    const rx = gameState?.lastReaction;
-    if (!rx) return;
+    if (!lastReaction || seenReaction.current === lastReaction.id || Date.now() - lastReaction.timestamp > 2200) return;
+    seenReaction.current = lastReaction.id;
+    const { seatIndex, emoji, id } = lastReaction;
     soundService.playReactionSound();
-    setActiveReactions((prev) => ({ ...prev, [rx.seatIndex]: rx.emoji }));
-    const timer = setTimeout(() => {
-      setActiveReactions((prev) => ({ ...prev, [rx.seatIndex]: null }));
+    clearTimeout(reactionTimers.current[seatIndex]);
+    setActiveReactions(prev => ({ ...prev, [seatIndex]: { emoji, id } }));
+    reactionTimers.current[seatIndex] = setTimeout(() => {
+      setActiveReactions(prev => ({ ...prev, [seatIndex]: null }));
+      delete reactionTimers.current[seatIndex];
     }, 2200);
-    return () => clearTimeout(timer);
-  }, [gameState?.lastReaction?.id]);
+  }, [lastReaction]);
+  useEffect(() => () => {
+    Object.values(reactionTimers.current).forEach(clearTimeout);
+    reactionTimers.current = {};
+    seenReaction.current = null;
+  }, []);
 
   // Reset read messages when chat drawer is opened
   useEffect(() => {
@@ -92,12 +103,13 @@ export const GameTable: React.FC<GameTableProps> = ({
     }
   }, [isChatOpen, messages.length]);
 
+  const completedTrickCount = gameState?.completedTricks.length ?? 0;
   // Trigger shuffle animation on new deal
   useEffect(() => {
-    if (gameState?.status === 'trump_selection' && gameState.completedTricks.length === 0) {
+    if (gameState?.status === 'trump_selection' && completedTrickCount === 0) {
       setShowShuffleAnimation(true);
     }
-  }, [gameState?.currentDeal, gameState?.status]);
+  }, [gameState?.currentDeal, gameState?.status, completedTrickCount]);
 
   // Relative seat position calculation (local player always at bottom)
   const getRelativePosition = (seatIndex: number): RelativePosition => {
@@ -163,8 +175,9 @@ export const GameTable: React.FC<GameTableProps> = ({
     await roomService.selectTrump(room.id, localPlayerId, suit);
   };
 
-  const handleSendReaction = (emoji: string) => {
-    roomService.sendReaction(room.id, localPlayerId, emoji);
+  const handleSendReaction = async (emoji: string) => {
+    try { await roomService.sendReaction(room.id, localPlayerId, emoji); }
+    catch { setActionError('Couldn’t send your reaction. Try again.'); }
   };
 
   const handleSendChatMessage = async (text: string) => {
@@ -177,7 +190,7 @@ export const GameTable: React.FC<GameTableProps> = ({
     });
   };
 
-  const handlePlayCard = (card: Card) => {
+  const handlePlayCard = useCallback((card: Card) => {
     setActionError(null);
     startTransition(async () => {
       try {
@@ -189,211 +202,48 @@ export const GameTable: React.FC<GameTableProps> = ({
         setTimeout(() => setActionError(null), 3000);
       }
     });
-  };
+  }, [room.id, localPlayerId]);
+
+  const renderSeat = (seat: { player: Player | null; seatIndex: number }, position: RelativePosition, teammate: boolean) => (
+    <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate}
+      isTurn={gameState?.status === 'playing' && gameState.currentTurnSeatIndex === seat.seatIndex}
+      isDealer={gameState?.dealerSeatIndex === seat.seatIndex} isCaller={gameState?.trumpCallerSeatIndex === seat.seatIndex}
+      cardCount={gameState?.remainingCardCounts[seat.seatIndex] ?? 0} activeReaction={activeReactions[seat.seatIndex]?.emoji} reactionId={activeReactions[seat.seatIndex]?.id} />
+  );
 
   return (
-    <div className="relative w-full min-h-dvh bg-[#07090e] text-white flex flex-col justify-between overflow-hidden">
-      {/* Shuffling & Distribution Overlay Animation */}
-      {showShuffleAnimation && gameState && (
-        <ShuffleDistributionOverlay
-          dealNumber={gameState.currentDeal}
-          onAnimationComplete={() => setShowShuffleAnimation(false)}
-        />
-      )}
-
-      {/* Top Navigation */}
-      <header className="relative z-20 w-full px-4 py-3 flex items-center justify-between bg-[#0e1117]">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold tracking-tight text-white/90">CODEBASE</span>
-
-          <button
-            onClick={handleCopyCode}
-            title="Click to copy code"
-            className="text-xs tabular-nums text-neutral-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-neutral-900 border border-neutral-800"
-          >
-            {copiedCode ? 'Copied' : room.code}
-          </button>
-        </div>
-
-        {/* Center Scoreboard — Clickable to open full hand record */}
-        {gameState && (
-          <div className="hidden sm:block">
-            <Scoreboard
-              dealScores={gameState.teamDealScores}
-              matchScores={gameState.matchScores}
-              matchTarget={gameState.matchTarget}
-              currentDeal={gameState.currentDeal}
-              trumpSuit={gameState.trumpSuit}
-              onClick={() => setIsScoreDrawerOpen(true)}
-            />
-          </div>
-        )}
-
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* Common Chat Button with unread badge */}
-          <button
-            type="button"
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="relative px-3 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-300 hover:text-white transition-transform transition-colors cursor-pointer active:scale-95 flex items-center gap-1.5"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span className="hidden sm:inline">Chat</span>
-            {unreadCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
+    <div className="game-shell">
+      {showShuffleAnimation && gameState && <ShuffleDistributionOverlay dealNumber={gameState.currentDeal} onAnimationComplete={() => setShowShuffleAnimation(false)} />}
+      <header className="game-header">
+        <div className="game-brand"><span className="brand-mark" aria-hidden="true">♧</span><h1>Court Piece</h1><button className="room-code" onClick={handleCopyCode} aria-label="Copy room code">{copiedCode ? 'Copied!' : room.code} <span aria-hidden="true">⧉</span></button></div>
+        <nav className="table-tools" aria-label="Table controls">
+          <button className="tool-button" onClick={() => setIsChatOpen(!isChatOpen)}>Chat {unreadCount > 0 && <b className="unread-count">{unreadCount}</b>}</button>
           <ReactionPicker onSendReaction={handleSendReaction} />
-
-          <button
-            onClick={handleToggleMute}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-          >
-            {isMuted ? (
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <line x1="23" y1="9" x2="17" y2="15" />
-                <line x1="17" y1="9" x2="23" y2="15" />
-              </svg>
-            ) : (
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-              </svg>
-            )}
-          </button>
-
-          <button
-            onClick={onLeaveRoom}
-            className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800"
-          >
-            Leave
-          </button>
-        </div>
+          {onOpenRulesModal && <button className="tool-button" onClick={onOpenRulesModal}>Rules</button>}
+          <button className="tool-button sound-toggle" onClick={handleToggleMute} aria-label={isMuted ? 'Unmute sound' : 'Mute sound'} aria-pressed={!isMuted}>{isMuted ? 'Sound off' : 'Sound on'}</button>
+          <button className="tool-button leave-button" onClick={onLeaveRoom}>Leave</button>
+        </nav>
       </header>
-
-      {/* Mobile Scoreboard */}
-      {gameState && (
-        <div className="sm:hidden flex justify-center py-2 px-3 bg-neutral-950/60">
-          <Scoreboard
-            dealScores={gameState.teamDealScores}
-            matchScores={gameState.matchScores}
-            matchTarget={gameState.matchTarget}
-            currentDeal={gameState.currentDeal}
-            trumpSuit={gameState.trumpSuit}
-            onClick={() => setIsScoreDrawerOpen(true)}
-          />
-        </div>
-      )}
-
-      {/* Action error banner */}
-      {actionError && (
-        <div className="relative z-30 mx-auto mt-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs text-center font-medium">
-          {actionError}
-        </div>
-      )}
-
-      {/* Main Table Surface */}
-      <main className="relative z-10 flex-1 flex flex-col justify-between items-center px-4 py-2 max-w-5xl w-full mx-auto">
-        {/* Top: Partner */}
-        <div className="w-full flex justify-center pt-2">
-          <SeatView
-            player={topSeat.player}
-            seatIndex={topSeat.seatIndex}
-            position="top"
-            isTeammate={true}
-            isTurn={gameState?.currentTurnSeatIndex === topSeat.seatIndex}
-            isDealer={gameState?.dealerSeatIndex === topSeat.seatIndex}
-            isCaller={gameState?.trumpCallerSeatIndex === topSeat.seatIndex}
-            cardCount={gameState?.remainingCardCounts[topSeat.seatIndex] ?? 0}
-            activeReaction={activeReactions[topSeat.seatIndex]}
-          />
-        </div>
-
-        {/* Middle: Left, Center Trick, Right */}
-        <div className="w-full flex items-center justify-between my-auto py-2">
-          {/* Left Opponent */}
-          <div className="flex justify-start">
-            <SeatView
-              player={leftSeat.player}
-              seatIndex={leftSeat.seatIndex}
-              position="left"
-              isTeammate={false}
-              isTurn={gameState?.currentTurnSeatIndex === leftSeat.seatIndex}
-              isDealer={gameState?.dealerSeatIndex === leftSeat.seatIndex}
-              isCaller={gameState?.trumpCallerSeatIndex === leftSeat.seatIndex}
-              cardCount={gameState?.remainingCardCounts[leftSeat.seatIndex] ?? 0}
-              activeReaction={activeReactions[leftSeat.seatIndex]}
-            />
-          </div>
-
-          {/* Central Trick Surface */}
-          <div className="flex flex-col items-center justify-center mx-4">
-            {gameState && (
-              <TrickArea
-                trick={gameState.currentTrick}
-                getRelativePosition={getRelativePosition}
-                seats={room.seats.filter((s): s is Player => s !== null)}
-              />
-            )}
-          </div>
-
-          {/* Right Opponent */}
-          <div className="flex justify-end">
-            <SeatView
-              player={rightSeat.player}
-              seatIndex={rightSeat.seatIndex}
-              position="right"
-              isTeammate={false}
-              isTurn={gameState?.currentTurnSeatIndex === rightSeat.seatIndex}
-              isDealer={gameState?.dealerSeatIndex === rightSeat.seatIndex}
-              isCaller={gameState?.trumpCallerSeatIndex === rightSeat.seatIndex}
-              cardCount={gameState?.remainingCardCounts[rightSeat.seatIndex] ?? 0}
-              activeReaction={activeReactions[rightSeat.seatIndex]}
-            />
-          </div>
-        </div>
-
-        {/* Bottom: Turn Status & Local Hand with Slide/Double-Touch Gestures */}
-        <div className="w-full flex flex-col items-center relative">
-          {/* Floating Reaction for local player */}
-          {activeReactions[bottomSeat.seatIndex] && (
-            <div className="absolute -top-12 z-30 pointer-events-none animate-reaction-float">
-              <div className="px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-700 text-2xl">
-                {activeReactions[bottomSeat.seatIndex]}
-              </div>
-            </div>
-          )}
-
-          {gameState && (
-            <div className="mb-2">
-              <TurnBanner
-                currentTurnPlayerName={currentTurnPlayer?.nickname || 'Player'}
-                isLocalPlayerTurn={isMyTurn}
-                lastMoveNotice={gameState.lastMoveNotice}
-              />
-            </div>
-          )}
-
-          <div className="w-full flex flex-col items-center">
-            {/* Interactive Hand View (Supports slide-up gesture, double-touch, and trump aura) */}
-            <HandView
-              cards={displayHand}
-              isMyTurn={isMyTurn && gameState?.status === 'playing'}
-              leadSuit={gameState?.currentTrick.leadSuit}
-              trumpSuit={gameState?.trumpSuit}
-              onPlayCard={handlePlayCard}
-              isLoading={isPending}
-            />
-          </div>
+      <div className="game-info">
+        <span className="deal-label">Deal {gameState?.currentDeal ?? 1}<span>Single Sir · First to 7 tricks</span></span>
+        {gameState && <Scoreboard dealScores={gameState.teamDealScores} matchScores={gameState.matchScores} matchTarget={gameState.matchTarget} currentDeal={gameState.currentDeal} trumpSuit={gameState.trumpSuit} onClick={() => setIsScoreDrawerOpen(true)} />}
+        <span className="table-note">Partners sit opposite</span>
+      </div>
+      {actionError && <div className="game-error" role="alert">{actionError}</div>}
+      <main className="table-stage" aria-label="Court Piece table">
+        <div className="felt-table" aria-hidden="true" />
+        <div className="table-seat table-seat-top">{renderSeat(topSeat, 'top', true)}</div>
+        <div className="table-seat table-seat-left">{renderSeat(leftSeat, 'left', false)}</div>
+        <div className="table-center">{gameState && <TrickArea lastCompletedTrick={gameState.completedTricks.at(-1)} trick={gameState.currentTrick} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
+        <div className="table-seat table-seat-right">{renderSeat(rightSeat, 'right', false)}</div>
+        <div className="local-seat-label"><span className="status-dot" />{bottomSeat.player?.nickname ?? 'You'}<span>You · Team {(bottomSeat.player?.teamId ?? 0) + 1}</span>
+          {activeReactions[bottomSeat.seatIndex] && <div key={activeReactions[bottomSeat.seatIndex]?.id} className="seat-reaction" role="status">{activeReactions[bottomSeat.seatIndex]?.emoji}</div>}
         </div>
       </main>
+      <section className="hand-dock" aria-label="Your cards">
+        {gameState && <TurnBanner currentTurnPlayerName={currentTurnPlayer?.nickname || 'Player'} isLocalPlayerTurn={isMyTurn && gameState.status === 'playing'} lastMoveNotice={gameState.lastMoveNotice} />}
+        <HandView cards={displayHand} isMyTurn={isMyTurn && gameState?.status === 'playing'} leadSuit={gameState?.currentTrick.leadSuit} trumpSuit={gameState?.trumpSuit} onPlayCard={handlePlayCard} isLoading={isPending} />
+      </section>
 
       {/* Trump Selection Modal */}
       <TrumpSelectionModal

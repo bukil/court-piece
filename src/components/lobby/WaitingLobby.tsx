@@ -48,7 +48,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   };
 
   return (
-    <div className="relative min-h-dvh bg-[#0b0d11] text-neutral-100 flex flex-col justify-between p-6 sm:p-8">
+    <div className="waiting-screen">
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between max-w-lg w-full mx-auto">
         <span className="text-xs text-neutral-400 font-medium">Court Piece Table</span>
@@ -73,6 +73,8 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
 
       {/* Main Content */}
       <main className="relative z-10 max-w-lg w-full mx-auto my-auto flex flex-col items-center">
+        <h1 className="lobby-title">A seat for everyone.</h1>
+        <p className="lobby-subtitle">Share your code. Your partner sits opposite you.</p>
         {/* Room Code Pill */}
         <div className="flex flex-col items-center mb-6">
           <span className="text-xs text-neutral-400 mb-2">Invite 3 players with code</span>
