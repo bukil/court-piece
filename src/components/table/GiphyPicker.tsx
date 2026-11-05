@@ -1,3 +1,4 @@
+import { lowResourceDevice } from '../../hooks/usePhoneTable';
 import { useEffect, useState } from 'react';
 import { findGifs, type GiphyGif } from '../../services/giphyService';
 import { GifMedia, GiphyCredit } from '../common/GifReaction';
@@ -23,6 +24,6 @@ export function GiphyPicker({ onSend }: { onSend: (reaction: ReactionInput) => P
     {loading && <p role="status">Loading GIFs…</p>}
     {error && <div role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
     {!loading && !error && !gifs.length && <p>No GIFs found. Try another search.</p>}
-    <div className="giphy-grid" aria-busy={sending}>{gifs.map(gif => <button key={gif.id} title={gif.title} aria-label={`React with ${gif.title}`} disabled={sending} onClick={() => void send(gif)}><GifMedia gif={gif} /></button>)}</div><GiphyCredit />
+    <div className="giphy-grid" aria-busy={sending}>{gifs.map(gif => <button key={gif.id} title={gif.title} aria-label={`React with ${gif.title}`} disabled={sending} onClick={() => void send(gif)}><GifMedia gif={gif} active={!lowResourceDevice()} /></button>)}</div><GiphyCredit />
   </div>;
 }

@@ -1,3 +1,6 @@
+import '../../phone-table.css';
+import { usePhoneTable } from '../../hooks/usePhoneTable';
+import { PhoneTableMenu } from './PhoneTableMenu';
 import { useCardPlay } from '../../hooks/useCardPlay';
 import { reactionDuration } from '../../game-engine/reactions';
 import type { ReactionEvent, ReactionInput } from '../../types/game';
@@ -40,6 +43,7 @@ export const GameTable: React.FC<GameTableProps> = ({
   onOpenRulesModal,
 }) => {
   const viewportRef = useGameViewport();
+  const phone = usePhoneTable();
   const [hand, setHand] = useState<Card[]>([]);
   const [initialCards, setInitialCards] = useState<Card[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -51,10 +55,10 @@ export const GameTable: React.FC<GameTableProps> = ({
 
   // Modals / Drawers
   const [isScoreDrawerOpen, setIsScoreDrawerOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(() => !phone.isPhone);
   const [lastReadMessageCount, setLastReadMessageCount] = useState(0);
   const [showShuffleAnimation, setShowShuffleAnimation] = useState(
-    room.status === 'trump_selection' && (room.gameState?.completedTricks.length ?? 0) === 0
+    !phone.lite && room.status === 'trump_selection' && (room.gameState?.completedTricks.length ?? 0) === 0
   );
 
   const presenceNow = useRoomPresence(room.id, localPlayerId);
@@ -113,10 +117,10 @@ export const GameTable: React.FC<GameTableProps> = ({
   const completedTrickCount = gameState?.completedTricks.length ?? 0;
   // Trigger shuffle animation on new deal
   useEffect(() => {
-    if (gameState?.status === 'trump_selection' && completedTrickCount === 0) {
+    if (!phone.lite && gameState?.status === 'trump_selection' && completedTrickCount === 0) {
       setShowShuffleAnimation(true);
     }
-  }, [gameState?.currentDeal, gameState?.status, completedTrickCount]);
+  }, [gameState?.currentDeal, gameState?.status, completedTrickCount, phone.lite]);
 
   // Relative seat position calculation (local player always at bottom)
   const getRelativePosition = (seatIndex: number): RelativePosition => {
@@ -210,29 +214,35 @@ export const GameTable: React.FC<GameTableProps> = ({
   };
 
   const renderSeat = (seat: { player: Player | null; seatIndex: number }, position: RelativePosition, teammate: boolean, local = false) => (
-    <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate} isLocalPlayer={local} isOnline={(seat.player?.id !== localPlayerId || navigator.onLine) && playerIsOnline(seat.player, presenceNow)} seconds={clock.seconds} warning={clock.warning}
+    <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate} isLocalPlayer={local} animateAvatar={!phone.lite} isOnline={(seat.player?.id !== localPlayerId || navigator.onLine) && playerIsOnline(seat.player, presenceNow)} seconds={clock.seconds} warning={clock.warning}
       isTurn={gameState?.status === 'playing' && gameState.currentTurnSeatIndex === seat.seatIndex}
       isDealer={gameState?.dealerSeatIndex === seat.seatIndex} isCaller={gameState?.trumpCallerSeatIndex === seat.seatIndex}
       cardCount={gameState?.remainingCardCounts[seat.seatIndex] ?? 0} activeReaction={activeReactions[seat.seatIndex]} />
   );
 
+  const scores = gameState && <Scoreboard dealScores={gameState.teamDealScores} matchScores={gameState.matchScores} matchTarget={gameState.matchTarget} currentDeal={gameState.currentDeal} trumpSuit={gameState.trumpSuit} onClick={() => setIsScoreDrawerOpen(true)} />;
   return (
-    <div ref={viewportRef} className="game-shell">
-      {showShuffleAnimation && gameState && <ShuffleDistributionOverlay dealNumber={gameState.currentDeal} onAnimationComplete={() => setShowShuffleAnimation(false)} />}
+    <div ref={viewportRef} className="game-shell" data-phone={phone.isPhone} data-phone-landscape={phone.landscape} data-performance={phone.lite ? 'lite' : 'full'} data-rotate-hint={phone.rotateHint}>
+      {showShuffleAnimation && !phone.lite && gameState && <ShuffleDistributionOverlay dealNumber={gameState.currentDeal} onAnimationComplete={() => setShowShuffleAnimation(false)} />}
       <header className="game-header">
+        {phone.landscape && <><div className="phone-local-player">{renderSeat(bottomSeat, 'bottom', false, true)}</div><div className="phone-scores">{scores}</div></>}
         <div className="game-brand"><span className="brand-mark" aria-hidden="true">♧</span><h1>Court Piece</h1><button className="room-code" onClick={handleCopyCode} aria-label="Copy room code">{copiedCode ? 'Copied!' : room.code} <span aria-hidden="true">⧉</span></button></div>
         <nav className="table-tools" aria-label="Table controls">
-          <button className="tool-button" aria-expanded={isChatOpen} aria-controls="table-chat" onClick={() => setIsChatOpen(!isChatOpen)}>Chat {unreadCount > 0 && <b className="unread-count">{unreadCount}</b>}</button>
+          <button className="tool-button chat-toggle" aria-expanded={isChatOpen} aria-controls="table-chat" onClick={() => setIsChatOpen(!isChatOpen)}>Chat {unreadCount > 0 && <b className="unread-count">{unreadCount}</b>}</button>
           {onOpenRulesModal && <button className="tool-button" onClick={onOpenRulesModal}>Rules</button>}
           <button className="tool-button sound-toggle" onClick={handleToggleMute} aria-label={isMuted ? 'Unmute sound' : 'Mute sound'} aria-pressed={!isMuted}>{isMuted ? 'Sound off' : 'Sound on'}</button>
           <button className="tool-button leave-button" onClick={onLeaveRoom}>Leave</button>
+          {(phone.isPhone || phone.fullscreen) && phone.canFullscreen && <button className="tool-button fullscreen-toggle" onClick={() => void phone.toggleFullscreen()} aria-label={phone.fullscreen ? 'Exit full screen' : 'Enter full screen landscape'}><span className="fullscreen-label">{phone.fullscreen ? 'Exit full screen' : phone.landscape ? 'Full screen' : 'Landscape'}</span> <span aria-hidden="true">⛶</span></button>}
+          {phone.isPhone && <PhoneTableMenu code={room.code} muted={isMuted} onCopy={handleCopyCode} onToggleSound={handleToggleMute} onRules={onOpenRulesModal} onLeave={onLeaveRoom} />}
         </nav>
+        {phone.rotateHint && <div className="phone-rotate-hint" role="status"><span aria-hidden="true">↻</span><span>Rotate for a bigger table.</span><button aria-label="Dismiss rotation tip" onClick={phone.dismissHint}>×</button></div>}
+        {phone.message && <span className="phone-screen-message" role="status">{phone.message}</span>}
       </header>
       <div className={`game-workspace${isChatOpen ? ' chat-is-open' : ''}`}>
       <div className="game-board">
       <div className="game-info">
         <span className="deal-label">Deal {gameState?.currentDeal ?? 1}<span>Single Sir · First to 7 tricks</span></span>
-        {gameState && <Scoreboard dealScores={gameState.teamDealScores} matchScores={gameState.matchScores} matchTarget={gameState.matchTarget} currentDeal={gameState.currentDeal} trumpSuit={gameState.trumpSuit} onClick={() => setIsScoreDrawerOpen(true)} />}
+        {scores}
         <div className="trump-guide" aria-live="polite">{gameState?.trumpSuit
           ? <><span className="trump-guide-symbol" aria-hidden="true">{SUIT_SYMBOLS[gameState.trumpSuit]}</span><span><strong>{gameState.trumpSuit} are trump</strong><span>Beats other suits when you can’t follow.</span></span></>
           : <span><strong>Trump is being chosen</strong><span>The special suit that beats other suits.</span></span>}</div>
@@ -244,7 +254,7 @@ export const GameTable: React.FC<GameTableProps> = ({
         <div className="table-seat table-seat-left">{renderSeat(leftSeat, 'left', false)}</div>
         <div className="table-center">{gameState && <TrickArea trumpSuit={gameState.trumpSuit} lastCompletedTrick={gameState.completedTricks.at(-1)} trick={cardPlay.trick ?? gameState.currentTrick} localOrigin={cardPlay.pending?.origin} localCardId={cardPlay.pending?.play.card.id} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
         <div className="table-seat table-seat-right">{renderSeat(rightSeat, 'right', false)}</div>
-        <div className="table-seat table-seat-bottom">{renderSeat(bottomSeat, 'bottom', false, true)}</div>
+        {!phone.landscape && <div className="table-seat table-seat-bottom">{renderSeat(bottomSeat, 'bottom', false, true)}</div>}
       </main>
       <section className="hand-dock" aria-label="Your cards">
         <span className="sr-only" role="status">{isMyTurn && gameState?.status === 'playing' ? clock.warning ? 'Your turn. Seven seconds or less remaining.' : 'Your turn.' : ''}</span>

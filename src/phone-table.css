@@ -1,0 +1,132 @@
+/* A phone table uses the viewport for play; chat is opened deliberately. */
+.phone-table-menu { display: none; }
+.hand-cards-viewport { min-width: 0; }
+.hand-play-label, .hand-play-card { margin-left: 0 !important; }
+.hand-card.is-dragging .card-gesture { opacity: 0; }
+.dragged-card-overlay { position: fixed; z-index: 100; pointer-events: none; transform-origin: center; }
+.dragged-card-overlay > .playing-card { width: 100%; height: 100%; transform: none; animation: none; }
+.game-shell[data-phone="true"] .game-header .tool-button,
+.game-shell[data-phone="true"] .phone-table-menu summary { min-height: 44px; min-width: 44px; font-size: 14px; padding: 8px 10px; }
+.game-shell[data-phone="true"] .table-tools > .tool-button:not(.chat-toggle):not(.fullscreen-toggle) { display: none; }
+.game-shell[data-phone="true"] .phone-table-menu { display: block; position: relative; }
+.phone-table-menu summary { display: flex; gap: 5px; align-items: center; cursor: pointer; list-style: none; color: var(--text); border-radius: 8px; }
+.phone-table-menu summary::-webkit-details-marker { display: none; }
+.phone-table-menu summary > span { font-size: 22px; }
+.phone-table-menu-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 90; width: 210px; background: var(--paper); color: var(--ink); padding: 8px; border-radius: 10px; box-shadow: 0 8px 20px #061c2540; }
+.phone-table-menu-panel button { min-height: 48px; width: 100%; text-align: left; padding: 10px; font-size: 15px; border-radius: 6px; }
+.phone-table-menu-panel button:hover, .phone-table-menu-panel button:focus-visible { background: #d8ead8; }
+.phone-rotate-hint { display: flex; align-items: center; gap: 8px; width: 100%; color: var(--accent); font-size: 14px; }
+.phone-rotate-hint > span:first-child { font-size: 28px; }
+.phone-rotate-hint button { margin-left: auto; width: 44px; height: 44px; font-size: 24px; }
+.phone-screen-message { position: absolute; top: 100%; right: 12px; z-index: 60; padding: 8px; background: var(--surface); color: var(--text); border-radius: 6px; font-size: 13px; }
+.game-shell[data-phone="true"][data-rotate-hint="true"] { grid-template-rows: 132px minmax(0,1fr); }
+.game-shell[data-phone="true"] .hand-dock { padding-inline: 12px; }
+.game-shell[data-phone="true"] .player-hand { max-width: none; position: relative; }
+.game-shell[data-phone="true"] .hand-meta { font-size: 13px; min-height: 22px; padding-right: 64px; }
+.game-shell[data-phone="true"] .hand-scroll { padding-top: 0; padding-bottom: 0; padding-right: 60px; }
+.game-shell[data-phone="true"] .hand-cards-viewport { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; height: 130px; padding: 20px 4px 6px; }
+.game-shell[data-phone="true"] .hand-cards-viewport::-webkit-scrollbar { display: none; }
+.game-shell[data-phone="true"] .hand-fan { width: max-content; min-width: 100%; padding: 0; justify-content: center; }
+.game-shell[data-phone="true"] .hand-card { flex: 0 0 48px; }
+.game-shell[data-phone="true"] .hand-card:last-child { flex: 0 0 76px; }
+.game-shell[data-phone="true"] .hand-card.is-draggable,
+.game-shell[data-phone="true"] .hand-card.is-draggable button { touch-action: pan-x; }
+.game-shell[data-phone="true"] .card-md { width: 76px; height: 104px; padding: 6px; }
+.game-shell[data-phone="true"] .card-md .card-corner { width: 18px; font-size: 16px; }
+.game-shell[data-phone="true"] .card-md .card-corner b { font-size: 24px; }
+.game-shell[data-phone="true"] .card-md .card-emblem { font-size: 36px; }
+.game-shell[data-phone="true"] .hand-action { position: absolute; right: 0; top: 0; min-height: 0; width: 52px; display: flex; flex-direction: column; gap: 4px; }
+.game-shell[data-phone="true"] .hand-action:not(:has(button)) { display: none; }
+.game-shell[data-phone="true"] .hand-action button { width: 52px; min-height: 44px; padding: 8px 2px; font-size: 14px; }
+.game-shell[data-phone="true"] .hand-action .hand-play-card,
+.game-shell[data-phone="true"] .hand-action .primary-action > span[aria-hidden] { display: none; }
+.game-shell[data-phone="true"] .hand-reaction-control { right: 0; top: auto; bottom: 4px; transform: none; }
+.game-shell[data-phone="true"] .hand-reactions .reaction-toggle { width: 48px; height: 48px; min-height: 48px; }
+.game-shell[data-phone="true"] .hand-reactions .reaction-catalog { width: min(320px,calc(100dvw - 24px)); max-height: calc(var(--game-height,100dvh) - 76px); }
+.game-shell[data-phone="true"] .chat-close,
+.game-shell[data-phone="true"] .chat-composer button { min-width: 44px; min-height: 44px; }
+.game-shell[data-phone-landscape="true"] { grid-template-rows: 56px minmax(0,1fr); }
+.game-shell[data-phone-landscape="true"] .game-header { padding: 2px 10px; position: relative; gap: 10px; justify-content: space-between; }
+.game-shell[data-phone-landscape="true"] .game-brand { display: none; }
+.game-shell[data-phone-landscape="true"] .table-tools { width: auto; flex-shrink: 0; gap: 4px; }
+.phone-local-player { flex-shrink: 0; width: 56px; height: 52px; display: grid; place-items: center; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .player-seat { width: 56px; height: 56px; padding: 6px; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-avatar,
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-avatar > .pack-avatar { width: 44px; height: 44px; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-clock-ring { width: 56px; height: 56px; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-turn-marker { display: none; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-seconds { bottom: -3px; right: -6px; height: 22px; min-width: 22px; font-size: 12px; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-tooltip { top: calc(100% + 4px); left: 0; translate: 0; }
+.game-shell[data-phone-landscape="true"] .phone-local-player .seat-gif-reaction { top: calc(100% + 8px); left: 0; bottom: auto; margin: 0; translate: none; width: 104px; height: 82px; }
+.phone-scores .scoreboard { min-height: 48px; padding: 3px 8px; gap: 8px; }
+.phone-scores .team-score { font-size: 11px; gap: 4px; }
+.phone-scores .team-score b { font-size: 24px; }
+.phone-scores .trump-score { flex-direction: row; gap: 4px; padding: 4px 6px; min-width: 44px; }
+.phone-scores .trump-score > span { font-size: 11px; }
+.phone-scores .trump-score b { font-size: 24px; }
+.phone-scores .score-expand { display: none; }
+.game-shell[data-phone-landscape="true"] .game-workspace { display: grid; grid-template-columns: minmax(0,1fr); }
+.game-shell[data-phone-landscape="true"] .game-workspace.chat-is-open { grid-template-columns: minmax(0,1fr) clamp(208px,28vw,260px); grid-template-rows: minmax(0,1fr); }
+.game-shell[data-phone-landscape="true"] .game-board { position: relative; display: block; }
+.game-shell[data-phone-landscape="true"] .game-info { display: none; }
+.game-shell[data-phone-landscape="true"] .table-stage { position: absolute; inset: 0; width: 100%; max-width: none; height: 100%; }
+.game-shell[data-phone-landscape="true"] .felt-table { inset: 2px 6px 4px; border-radius: 28px; border-width: 4px; background: #1d5149; }
+.game-shell[data-phone-landscape="true"] .table-center { width: 264px; height: 84px; top: 62px; transform: translateX(-50%); --trick-scale: 1; }
+.game-shell[data-phone-landscape="true"] .trick-area { width: 264px; height: 84px; scale: 1; }
+.game-shell[data-phone-landscape="true"] .trick-slot { top: 0; bottom: auto; right: auto; rotate: 0deg; }
+.game-shell[data-phone-landscape="true"] .trick-top { left: 0; }
+.game-shell[data-phone-landscape="true"] .trick-left { left: 68px; }
+.game-shell[data-phone-landscape="true"] .trick-right { left: 136px; }
+.game-shell[data-phone-landscape="true"] .trick-bottom { left: 204px; }
+.game-shell[data-phone-landscape="true"] .trick-slot .card-sm,
+.game-shell[data-phone-landscape="true"] .empty-card-slot { width: 60px; height: 84px; }
+.game-shell[data-phone-landscape="true"] .card-sm .card-corner b { font-size: 20px; }
+.game-shell[data-phone-landscape="true"] .card-sm .card-corner { font-size: 14px; }
+.game-shell[data-phone-landscape="true"] .table-monogram, .game-shell[data-phone-landscape="true"] .trick-caption { display: none; }
+.game-shell[data-phone-landscape="true"] .table-seat-top { top: 0; }
+.game-shell[data-phone-landscape="true"] .table-seat-left { left: 10px; top: 82px; transform: none; }
+.game-shell[data-phone-landscape="true"] .table-seat-right { right: 10px; top: 82px; transform: none; }
+.game-shell[data-phone-landscape="true"] .table-stage .player-seat { width: 60px; height: 60px; padding: 6px; }
+.game-shell[data-phone-landscape="true"] .table-stage .seat-avatar,
+.game-shell[data-phone-landscape="true"] .table-stage .seat-avatar > .pack-avatar { width: 48px; height: 48px; }
+.game-shell[data-phone-landscape="true"] .table-stage .seat-clock-ring { width: 60px; height: 60px; }
+.game-shell[data-phone-landscape="true"] .hand-dock { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 14px 4px; z-index: 20; }
+.game-shell[data-phone-landscape="true"] .table-chat { border-top: 0; border-left: 1px solid #456b60; padding: 0 10px 6px; }
+.game-shell[data-phone-landscape="true"] .chat-header { padding: 4px 0; }
+.game-shell[data-phone-landscape="true"] .chat-presets { display: none; }
+.game-shell[data-performance="lite"] .hand-card,
+.game-shell[data-performance="lite"] .seat-turn-marker,
+.game-shell[data-performance="lite"] .seat-warning .seat-clock-ring { animation: none; }
+@media(max-width:700px) { .game-shell[data-phone-landscape="true"] .fullscreen-label { display: none; } .game-shell[data-phone-landscape="true"] .fullscreen-toggle > span[aria-hidden] { font-size: 24px; } .phone-scores .scoreboard { gap: 6px; } }
+@container board (max-width:480px) {
+  .game-shell[data-phone-landscape="true"] .table-center,
+  .game-shell[data-phone-landscape="true"] .trick-area { width: 208px; height: 74px; }
+  .game-shell[data-phone-landscape="true"] .trick-slot .card-sm,
+  .game-shell[data-phone-landscape="true"] .empty-card-slot { width: 48px; height: 74px; }
+  .game-shell[data-phone-landscape="true"] .trick-left { left: 54px; } .game-shell[data-phone-landscape="true"] .trick-right { left: 108px; } .game-shell[data-phone-landscape="true"] .trick-bottom { left: 160px; }
+  .game-shell[data-phone-landscape="true"] .table-seat-left { left: 2px; } .game-shell[data-phone-landscape="true"] .table-seat-right { right: 2px; }
+  .game-shell[data-phone-landscape="true"] .table-stage .player-seat { width: 52px; height: 52px; }
+  .game-shell[data-phone-landscape="true"] .table-stage .seat-avatar,
+  .game-shell[data-phone-landscape="true"] .table-stage .seat-avatar > .pack-avatar { width: 40px; height: 40px; }
+  .game-shell[data-phone-landscape="true"] .table-stage .seat-clock-ring { width: 52px; height: 52px; }
+}
+.game-shell[data-phone="true"] .hand-card { animation: none; }
+/* Keep the reaction close control below the phone toolbar, including in short viewports. */
+.game-shell[data-phone="true"] .hand-reactions .reaction-catalog { position: fixed; top: 64px; bottom: 8px; right: 8px; left: auto; max-height: calc(var(--game-height,100dvh) - 76px); }
+.game-shell[data-phone="true"] .reaction-catalog-header > button { width: 44px; height: 44px; }
+.game-shell[data-phone="true"] .reaction-categories button { min-height: 44px; font-size: 13px; }
+.game-shell[data-phone="true"] { padding-top: env(safe-area-inset-top); }
+.dragged-card-overlay[data-phone-card="true"] .card-corner { width: 18px; font-size: 16px; }
+.dragged-card-overlay[data-phone-card="true"] .card-corner b { font-size: 24px; }
+.dragged-card-overlay[data-phone-card="true"] .card-emblem { font-size: 36px; }
+.game-shell[data-phone-landscape="true"] .trump-dialog { width: min(720px,100%); padding: 16px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto auto 1fr; gap: 8px 16px; }
+.game-shell[data-phone-landscape="true"] .trump-dialog h2 { grid-column: 1; grid-row: 1; font-size: 22px; }
+.game-shell[data-phone-landscape="true"] #trump-explained { grid-column: 1; grid-row: 2; margin-top: 0; font-size: 12px; line-height: 1.5; }
+.game-shell[data-phone-landscape="true"] .trump-preview { grid-column: 1; grid-row: 3; margin: 6px 0 0; align-self: center; gap: 0; }
+.game-shell[data-phone-landscape="true"] .trump-preview > .playing-card { width: 48px; height: 72px; margin-left: -8px; }
+.game-shell[data-phone-landscape="true"] .trump-preview > .playing-card:first-child { margin-left: 0; }
+.game-shell[data-phone-landscape="true"] .trump-options { grid-column: 2; grid-row: 1 / span 2; align-self: center; gap: 5px; }
+.game-shell[data-phone-landscape="true"] .trump-option { min-height: 82px; padding: 10px 2px; }
+.game-shell[data-phone-landscape="true"] .trump-confirm { grid-column: 2; grid-row: 3; margin: 0; align-self: center; min-height: 48px; font-size: 14px; padding-inline: 8px; }
+.game-shell[data-phone-landscape="true"] .trump-dialog .chat-error { grid-column: 2; grid-row: 4; }
+@media(max-width:540px) { .game-shell[data-phone-landscape="true"] .game-header { gap: 6px; padding-inline: 8px; } .phone-scores .team-score > span { display: none; } }

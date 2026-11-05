@@ -207,3 +207,11 @@ npx firebase-tools deploy --only functions:cleanupRooms,firestore:rules --projec
 Spark does not support deploying the scheduled function. Until the project is upgraded and this deployment completes, automatic room cleanup is not active.
 
 Hands and trump choices share the display order spades, hearts, clubs, diamonds, with ranks ascending. A submitted card is shown immediately and reconciled against both the public table and private-hand snapshots; rejected submissions restore the card.
+
+### Phone table mode
+
+Small landscape viewports use a table filling the available screen, a compact score/turn toolbar, 76 × 104 px hand cards with 48 px exposed touch strips, and a horizontally scrolling hand. Dragged cards render outside the scrolling region so upward swipes remain visible. Chat starts closed on phones and opens beside the board without a blocking overlay.
+
+Portrait phones receive a dismissible rotation tip. The full-screen control requests landscape orientation where supported; manual rotation and portrait play remain available when the browser cannot lock orientation. Safe-area insets and the visual viewport keep the controls within the usable screen.
+
+On devices reporting up to 2 GB memory, up to four CPU threads, or data saving, idle avatar/turn decoration and shuffle choreography are reduced, and GIF search uses still previews. Played GIF reactions and card-play feedback remain available. Device hints are optional; missing APIs use normal behavior.
