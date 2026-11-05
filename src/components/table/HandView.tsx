@@ -10,9 +10,10 @@ interface HandViewProps {
   trumpSuit?: Card['suit'] | null;
   onPlayCard: (card: Card) => void;
   isLoading?: boolean;
+  reactionControl?: React.ReactNode;
 }
 
-export const HandView: React.FC<HandViewProps> = ({ cards, isMyTurn, leadSuit, trumpSuit, onPlayCard, isLoading = false }) => {
+export const HandView: React.FC<HandViewProps> = ({ cards, isMyTurn, leadSuit, trumpSuit, onPlayCard, isLoading = false, reactionControl }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; y: number } | null>(null);
   const pointerStart = useRef<{ id: string; y: number } | null>(null);
@@ -29,7 +30,7 @@ export const HandView: React.FC<HandViewProps> = ({ cards, isMyTurn, leadSuit, t
   return (
     <div className="player-hand">
       <div className="hand-meta"><span>Your hand <b>{cards.length}</b></span><span>{isLoading ? 'Playing your card…' : isMyTurn ? hasLeadSuit ? `Follow ${SUIT_SYMBOLS[leadSuit!]} ${leadSuit}` : 'Choose any card' : 'Take a moment. Plan your next move.'}</span></div>
-      <div className="hand-scroll">
+      <div className={`hand-scroll${reactionControl ? ' has-reaction-control' : ''}`}>
         <div className="hand-fan" style={{ '--card-count': cards.length } as React.CSSProperties}>
           {cards.map((card, idx) => (
             <div key={card.id} className={`hand-card${selected?.id === card.id ? ' hand-card-selected' : ''}`}
@@ -64,6 +65,7 @@ export const HandView: React.FC<HandViewProps> = ({ cards, isMyTurn, leadSuit, t
             </div>
           ))}
         </div>
+        {reactionControl && <div className="hand-reaction-control">{reactionControl}</div>}
       </div>
       <div className="hand-action">
         {selected ? <><button className="primary-action" disabled={isLoading} onClick={() => executePlay(selected)}>Play {selected.rank} {SUIT_SYMBOLS[selected.suit]} <span aria-hidden="true">↗</span></button><button className="quiet-action" onClick={() => setSelectedCardId(null)}>Cancel</button></>

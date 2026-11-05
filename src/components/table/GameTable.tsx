@@ -1,3 +1,9 @@
+import { reactionDuration } from '../../game-engine/reactions';
+import type { ReactionEvent, ReactionInput } from '../../types/game';
+import { useRoomPresence, playerIsOnline } from '../../hooks/useRoomPresence';
+import { useTurnClock } from '../../hooks/useTurnClock';
+import { SUIT_SYMBOLS } from '../../game-engine/utils/deck';
+import { useGameViewport } from '../../hooks/useGameViewport';
 import React, { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import type {
   RoomDocument,
@@ -13,7 +19,6 @@ import { SeatView } from './SeatView';
 import { TrickArea } from './TrickArea';
 import { HandView } from './HandView';
 import { Scoreboard } from './Scoreboard';
-import { TurnBanner } from './TurnBanner';
 import { TrumpSelectionModal } from './TrumpSelectionModal';
 import { ReactionPicker } from './ReactionPicker';
 import { ScoreRecordDrawer } from './ScoreRecordDrawer';
@@ -33,24 +38,26 @@ export const GameTable: React.FC<GameTableProps> = ({
   onLeaveRoom,
   onOpenRulesModal,
 }) => {
+  const viewportRef = useGameViewport();
   const [hand, setHand] = useState<Card[]>([]);
   const [initialCards, setInitialCards] = useState<Card[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isMuted, setIsMuted] = useState(soundService.getIsMuted());
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeReactions, setActiveReactions] = useState<Record<number, { emoji: string; id: string } | null>>({});
+  const [activeReactions, setActiveReactions] = useState<Record<number, ReactionEvent | null>>({});
   const reactionTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const seenReaction = useRef<string | null>(null);
 
   // Modals / Drawers
   const [isScoreDrawerOpen, setIsScoreDrawerOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const [lastReadMessageCount, setLastReadMessageCount] = useState(0);
   const [showShuffleAnimation, setShowShuffleAnimation] = useState(
     room.status === 'trump_selection' && (room.gameState?.completedTricks.length ?? 0) === 0
   );
 
+  const presenceNow = useRoomPresence(room.id, localPlayerId);
   const gameState = room.gameState;
   const localPlayer = room.seats.find((s) => s?.id === localPlayerId);
   const localSeatIndex: SeatIndex = localPlayer ? localPlayer.seatIndex : 0;
@@ -79,16 +86,16 @@ export const GameTable: React.FC<GameTableProps> = ({
   // Each seat owns its expiry timer, so overlapping reactions never leave a bubble behind.
   const lastReaction = gameState?.lastReaction;
   useEffect(() => {
-    if (!lastReaction || seenReaction.current === lastReaction.id || Date.now() - lastReaction.timestamp > 2200) return;
+    if (!lastReaction || seenReaction.current === lastReaction.id || Date.now() - lastReaction.timestamp > reactionDuration(lastReaction)) return;
     seenReaction.current = lastReaction.id;
-    const { seatIndex, emoji, id } = lastReaction;
+    const { seatIndex } = lastReaction;
     soundService.playReactionSound();
     clearTimeout(reactionTimers.current[seatIndex]);
-    setActiveReactions(prev => ({ ...prev, [seatIndex]: { emoji, id } }));
+    setActiveReactions(prev => ({ ...prev, [seatIndex]: lastReaction }));
     reactionTimers.current[seatIndex] = setTimeout(() => {
       setActiveReactions(prev => ({ ...prev, [seatIndex]: null }));
       delete reactionTimers.current[seatIndex];
-    }, 2200);
+    }, reactionDuration(lastReaction));
   }, [lastReaction]);
   useEffect(() => () => {
     Object.values(reactionTimers.current).forEach(clearTimeout);
@@ -143,7 +150,13 @@ export const GameTable: React.FC<GameTableProps> = ({
   const bottomSeat = getPlayerAtPosition('bottom');
 
   const isMyTurn = gameState ? gameState.currentTurnSeatIndex === localSeatIndex : false;
-  const currentTurnPlayer = gameState ? room.seats[gameState.currentTurnSeatIndex] : null;
+
+  const clock = useTurnClock(gameState, room.id, localPlayerId, isMyTurn);
+  useEffect(() => {
+    const unlock = () => soundService.unlock();
+    window.addEventListener('pointerdown', unlock, { once: true }); window.addEventListener('keydown', unlock, { once: true });
+    return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+  }, []);
 
   const isTrumpSelection = room.status === 'trump_selection' || gameState?.status === 'trump_selection';
   const isTrumpCaller = gameState ? gameState.trumpCallerSeatIndex === localSeatIndex : false;
@@ -175,9 +188,9 @@ export const GameTable: React.FC<GameTableProps> = ({
     await roomService.selectTrump(room.id, localPlayerId, suit);
   };
 
-  const handleSendReaction = async (emoji: string) => {
-    try { await roomService.sendReaction(room.id, localPlayerId, emoji); }
-    catch { setActionError('Couldn’t send your reaction. Try again.'); }
+  const handleSendReaction = async (reaction: ReactionInput) => {
+    try { await roomService.sendReaction(room.id, localPlayerId, reaction); }
+    catch (error) { setActionError('Couldn’t send your reaction. Try again.'); throw error; }
   };
 
   const handleSendChatMessage = async (text: string) => {
@@ -204,49 +217,58 @@ export const GameTable: React.FC<GameTableProps> = ({
     });
   }, [room.id, localPlayerId]);
 
-  const renderSeat = (seat: { player: Player | null; seatIndex: number }, position: RelativePosition, teammate: boolean) => (
-    <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate}
+  const renderSeat = (seat: { player: Player | null; seatIndex: number }, position: RelativePosition, teammate: boolean, local = false) => (
+    <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate} isLocalPlayer={local} isOnline={(seat.player?.id !== localPlayerId || navigator.onLine) && playerIsOnline(seat.player, presenceNow)} seconds={clock.seconds} warning={clock.warning}
       isTurn={gameState?.status === 'playing' && gameState.currentTurnSeatIndex === seat.seatIndex}
       isDealer={gameState?.dealerSeatIndex === seat.seatIndex} isCaller={gameState?.trumpCallerSeatIndex === seat.seatIndex}
-      cardCount={gameState?.remainingCardCounts[seat.seatIndex] ?? 0} activeReaction={activeReactions[seat.seatIndex]?.emoji} reactionId={activeReactions[seat.seatIndex]?.id} />
+      cardCount={gameState?.remainingCardCounts[seat.seatIndex] ?? 0} activeReaction={activeReactions[seat.seatIndex]} />
   );
 
   return (
-    <div className="game-shell">
+    <div ref={viewportRef} className="game-shell">
       {showShuffleAnimation && gameState && <ShuffleDistributionOverlay dealNumber={gameState.currentDeal} onAnimationComplete={() => setShowShuffleAnimation(false)} />}
       <header className="game-header">
         <div className="game-brand"><span className="brand-mark" aria-hidden="true">♧</span><h1>Court Piece</h1><button className="room-code" onClick={handleCopyCode} aria-label="Copy room code">{copiedCode ? 'Copied!' : room.code} <span aria-hidden="true">⧉</span></button></div>
         <nav className="table-tools" aria-label="Table controls">
-          <button className="tool-button" onClick={() => setIsChatOpen(!isChatOpen)}>Chat {unreadCount > 0 && <b className="unread-count">{unreadCount}</b>}</button>
-          <ReactionPicker onSendReaction={handleSendReaction} />
+          <button className="tool-button" aria-expanded={isChatOpen} aria-controls="table-chat" onClick={() => setIsChatOpen(!isChatOpen)}>Chat {unreadCount > 0 && <b className="unread-count">{unreadCount}</b>}</button>
           {onOpenRulesModal && <button className="tool-button" onClick={onOpenRulesModal}>Rules</button>}
           <button className="tool-button sound-toggle" onClick={handleToggleMute} aria-label={isMuted ? 'Unmute sound' : 'Mute sound'} aria-pressed={!isMuted}>{isMuted ? 'Sound off' : 'Sound on'}</button>
           <button className="tool-button leave-button" onClick={onLeaveRoom}>Leave</button>
         </nav>
       </header>
+      <div className={`game-workspace${isChatOpen ? ' chat-is-open' : ''}`}>
+      <div className="game-board">
       <div className="game-info">
         <span className="deal-label">Deal {gameState?.currentDeal ?? 1}<span>Single Sir · First to 7 tricks</span></span>
         {gameState && <Scoreboard dealScores={gameState.teamDealScores} matchScores={gameState.matchScores} matchTarget={gameState.matchTarget} currentDeal={gameState.currentDeal} trumpSuit={gameState.trumpSuit} onClick={() => setIsScoreDrawerOpen(true)} />}
-        <span className="table-note">Partners sit opposite</span>
+        <div className="trump-guide" aria-live="polite">{gameState?.trumpSuit
+          ? <><span className="trump-guide-symbol" aria-hidden="true">{SUIT_SYMBOLS[gameState.trumpSuit]}</span><span><strong>{gameState.trumpSuit} are trump</strong><span>Beats other suits when you can’t follow.</span></span></>
+          : <span><strong>Trump is being chosen</strong><span>The special suit that beats other suits.</span></span>}</div>
       </div>
       {actionError && <div className="game-error" role="alert">{actionError}</div>}
       <main className="table-stage" aria-label="Court Piece table">
         <div className="felt-table" aria-hidden="true" />
         <div className="table-seat table-seat-top">{renderSeat(topSeat, 'top', true)}</div>
         <div className="table-seat table-seat-left">{renderSeat(leftSeat, 'left', false)}</div>
-        <div className="table-center">{gameState && <TrickArea lastCompletedTrick={gameState.completedTricks.at(-1)} trick={gameState.currentTrick} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
+        <div className="table-center">{gameState && <TrickArea trumpSuit={gameState.trumpSuit} lastCompletedTrick={gameState.completedTricks.at(-1)} trick={gameState.currentTrick} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
         <div className="table-seat table-seat-right">{renderSeat(rightSeat, 'right', false)}</div>
-        <div className="local-seat-label"><span className="status-dot" />{bottomSeat.player?.nickname ?? 'You'}<span>You · Team {(bottomSeat.player?.teamId ?? 0) + 1}</span>
-          {activeReactions[bottomSeat.seatIndex] && <div key={activeReactions[bottomSeat.seatIndex]?.id} className="seat-reaction" role="status">{activeReactions[bottomSeat.seatIndex]?.emoji}</div>}
-        </div>
+        <div className="table-seat table-seat-bottom">{renderSeat(bottomSeat, 'bottom', false, true)}</div>
       </main>
       <section className="hand-dock" aria-label="Your cards">
-        {gameState && <TurnBanner currentTurnPlayerName={currentTurnPlayer?.nickname || 'Player'} isLocalPlayerTurn={isMyTurn && gameState.status === 'playing'} lastMoveNotice={gameState.lastMoveNotice} />}
-        <HandView cards={displayHand} isMyTurn={isMyTurn && gameState?.status === 'playing'} leadSuit={gameState?.currentTrick.leadSuit} trumpSuit={gameState?.trumpSuit} onPlayCard={handlePlayCard} isLoading={isPending} />
+        <span className="sr-only" role="status">{isMyTurn && gameState?.status === 'playing' ? clock.warning ? 'Your turn. Seven seconds or less remaining.' : 'Your turn.' : ''}</span>
+        {clock.error && <span className="clock-connection-error" role="status">{clock.error}</span>}
+        <HandView reactionControl={<ReactionPicker placement="hand" onSendReaction={handleSendReaction} />} cards={displayHand} isMyTurn={isMyTurn && gameState?.status === 'playing'} leadSuit={gameState?.currentTrick.leadSuit} trumpSuit={gameState?.trumpSuit} onPlayCard={handlePlayCard} isLoading={isPending} />
       </section>
+
+      </div>
+
+      {/* Chat remains in the workspace next to the playable board. */}
+      <CommonChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} messages={messages} localPlayerId={localPlayerId} onSendMessage={handleSendChatMessage} />
+      </div>
 
       {/* Trump Selection Modal */}
       <TrumpSelectionModal
+        key={gameState?.currentDeal}
         isOpen={isTrumpSelection}
         isCaller={isTrumpCaller}
         callerPlayer={trumpCallerPlayer}
@@ -262,14 +284,7 @@ export const GameTable: React.FC<GameTableProps> = ({
         seats={room.seats}
       />
 
-      {/* Common Chat Drawer */}
-      <CommonChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        messages={messages}
-        localPlayerId={localPlayerId}
-        onSendMessage={handleSendChatMessage}
-      />
+
     </div>
   );
 };

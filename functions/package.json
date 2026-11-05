@@ -1,10 +1,11 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "tsc"
+    "build": "node scripts/sync-engine.mjs && tsc",
+    "test": "npm run build && node --test tests/*.cjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22"
   },
   "main": "lib/index.js",
   "dependencies": {
@@ -16,4 +17,3 @@
   },
   "private": true
 }
-

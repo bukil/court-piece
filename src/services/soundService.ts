@@ -29,6 +29,22 @@ class SoundService {
     return this.ctx;
   }
 
+  public unlock(): void { this.getContext(); }
+
+  public playCountdownTick(): void {
+    const ctx = this.getContext();
+    if (!ctx || ctx.state !== 'running') return;
+    try {
+      for (let index = 0; index < 2; index++) {
+        const time = ctx.currentTime + index * .1;
+        const oscillator = ctx.createOscillator(); const gain = ctx.createGain();
+        oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(index ? 650 : 900, time);
+        gain.gain.setValueAtTime(.05, time); gain.gain.exponentialRampToValueAtTime(.001, time + .045);
+        oscillator.connect(gain); gain.connect(ctx.destination); oscillator.start(time); oscillator.stop(time + .05);
+      }
+    } catch { /* Audio must not interrupt a move. */ }
+  }
+
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     localStorage.setItem('codebase_sound_muted', this.isMuted ? 'true' : 'false');

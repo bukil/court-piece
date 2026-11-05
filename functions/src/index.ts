@@ -1,3 +1,6 @@
+import { applyCard } from './shared/game-engine/court-piece/applyCard';
+import { isTurnExpired, lowestLegalCard, turnKey } from './shared/game-engine/turnClock';
+import type { RoomDocument } from './shared/types/game';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
@@ -188,6 +191,7 @@ export const selectTrump = onCall(async (request) => {
 
     room.gameState.trumpSuit = suit;
     room.gameState.status = 'playing';
+    room.gameState.turnStartedAt = admin.firestore.Timestamp.now();
     room.gameState.remainingCardCounts = [13, 13, 13, 13];
     room.gameState.currentTurnSeatIndex = room.gameState.trumpCallerSeatIndex;
     room.gameState.lastMoveNotice = `${callerSeat.nickname} selected ${suit.toUpperCase()} as Trump! Leading trick 1.`;
@@ -200,5 +204,32 @@ export const selectTrump = onCall(async (request) => {
     });
 
     return { success: true };
+  });
+});
+
+/** Any seated player can request expiry; private hands remain server-only. */
+export const expireTurn = onCall(async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to continue.');
+  const { roomId, expectedTurn } = request.data ?? {};
+  if (typeof roomId !== 'string' || typeof expectedTurn !== 'string') throw new HttpsError('invalid-argument', 'Missing room or turn.');
+  const roomRef = db.collection('rooms').doc(roomId);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(roomRef);
+    if (!snapshot.exists) throw new HttpsError('not-found', 'Room not found.');
+    const room = snapshot.data() as RoomDocument;
+    if (!room.seats.some(player => player?.id === request.auth!.uid)) throw new HttpsError('permission-denied', 'Only seated players can request expiry.');
+    const state = room.gameState;
+    if (!state || room.status !== 'playing' || turnKey(state) !== expectedTurn || !isTurnExpired(state)) return { played: false };
+    const player = room.seats[state.currentTurnSeatIndex];
+    if (!player) return { played: false };
+    const handRef = roomRef.collection('privateHands').doc(player.id);
+    const handSnapshot = await transaction.get(handRef);
+    const hand = (handSnapshot.data()?.cards ?? []) as Card[];
+    const card = lowestLegalCard(state, hand);
+    if (!card) return { played: false };
+    const nextHand = applyCard(room, player, card, hand);
+    transaction.update(handRef, { cards: nextHand, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    transaction.update(roomRef, { status: room.status, gameState: { ...room.gameState, turnStartedAt: admin.firestore.FieldValue.serverTimestamp() }, version: room.version + 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return { played: true };
   });
 });

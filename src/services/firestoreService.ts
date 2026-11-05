@@ -1,8 +1,16 @@
+import { normalizeReaction } from '../game-engine/reactions';
+import type { ReactionInput } from '../types/game';
+import { generateRoomCode } from '../game-engine/roomCode';
+import { PRESENCE_STALE_MS } from '../game-engine/turnClock';
+import { applyCard } from '../game-engine/court-piece/applyCard';
+import { isTurnExpired, lowestLegalCard, turnKey } from '../game-engine/turnClock';
+import type { PlayerProfile } from '../types/game';
+import { normalizeAvatarId } from '../data/avatarCatalog';
 import {
   doc,
   collection,
-  setDoc,
   getDocs,
+  getDoc,
   query,
   where,
   onSnapshot,
@@ -19,7 +27,6 @@ import type {
   Player,
   PublicGameState,
   TeamId,
-  PlayedCard,
   Suit,
   ChatMessage,
 } from '../types/game';
@@ -33,24 +40,17 @@ export class FirestoreRoomService {
     return db;
   }
 
-  public generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
+  public generateRoomCode(): string { return generateRoomCode(); }
 
-  public async createRoom(host: { id: string; nickname: string }): Promise<RoomDocument> {
+  public async createRoom(host: PlayerProfile): Promise<RoomDocument> {
     const firestore = this.getDb();
-    const roomsRef = collection(firestore, 'rooms');
-    const roomDocRef = doc(roomsRef);
-    const code = this.generateRoomCode();
+    let code = this.generateRoomCode();
+    const roomDocRef = doc(firestore, 'rooms', `table_${code}`);
 
     const hostPlayer: Player = {
       id: host.id,
       nickname: host.nickname,
+      avatarId: normalizeAvatarId(host.avatarId, host.id),
       seatIndex: 0,
       teamId: 0,
       isHost: true,
@@ -72,13 +72,19 @@ export class FirestoreRoomService {
       version: 1,
     };
 
-    await setDoc(roomDocRef, {
-      ...room,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const candidate = doc(firestore, 'rooms', `table_${code}`);
+      const created = await runTransaction(firestore, async transaction => {
+        const reservation = await transaction.get(candidate);
+        if (reservation.exists()) return false;
+        transaction.set(candidate, { ...room, id: candidate.id, code, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        return true;
+      });
+      if (created) { room.id = candidate.id; room.code = code; return room; }
+      code = this.generateRoomCode();
+    }
+    throw new Error('No room codes available. Try again shortly.');
 
-    return room;
   }
 
   public async findRoomByCode(code: string): Promise<RoomDocument | null> {
@@ -93,7 +99,7 @@ export class FirestoreRoomService {
 
   public async joinRoom(
     roomCode: string,
-    player: { id: string; nickname: string }
+    player: PlayerProfile
   ): Promise<{ room: RoomDocument; seatIndex: SeatIndex }> {
     const firestore = this.getDb();
     const room = await this.findRoomByCode(roomCode);
@@ -114,6 +120,7 @@ export class FirestoreRoomService {
       const existingSeat = freshRoom.seats.findIndex((s) => s?.id === player.id);
       if (existingSeat !== -1) {
         freshRoom.seats[existingSeat]!.nickname = player.nickname;
+        freshRoom.seats[existingSeat]!.avatarId = normalizeAvatarId(player.avatarId ?? freshRoom.seats[existingSeat]!.avatarId, player.id);
         freshRoom.seats[existingSeat]!.isConnected = true;
         freshRoom.seats[existingSeat]!.lastSeen = Date.now();
         transaction.update(roomRef, {
@@ -138,6 +145,7 @@ export class FirestoreRoomService {
       const newPlayer: Player = {
         id: player.id,
         nickname: player.nickname,
+        avatarId: normalizeAvatarId(player.avatarId, player.id),
         seatIndex,
         teamId,
         isHost: freshRoom.hostPlayerId === player.id,
@@ -251,7 +259,7 @@ export class FirestoreRoomService {
 
       transaction.update(roomRef, {
         status: 'playing',
-        gameState: room.gameState,
+        gameState: { ...room.gameState, turnStartedAt: serverTimestamp() },
         version: (room.version || 0) + 1,
         updatedAt: serverTimestamp(),
       });
@@ -280,79 +288,66 @@ export class FirestoreRoomService {
 
       const privateCards = (handSnap.data()?.cards || []) as Card[];
 
-      const validation = courtPieceEngine.validateMove(
-        room.gameState,
-        privateCards,
-        player.seatIndex,
-        card
-      );
-
-      if (!validation.isValid) {
-        throw new Error(validation.reason || 'Illegal move.');
-      }
-
-      const newHand = privateCards.filter((c) => c.id !== card.id);
-      transaction.update(handRef, {
-        cards: newHand,
-        updatedAt: serverTimestamp(),
-      });
-
-      const playedCard: PlayedCard = {
-        playerId: callerId,
-        seatIndex: player.seatIndex,
-        card,
-        playedAt: Date.now(),
-      };
-
-      const trick = room.gameState.currentTrick;
-      if (!trick.leadSuit) {
-        trick.leadSuit = card.suit;
-      }
-      trick.cards.push(playedCard);
-      room.gameState.remainingCardCounts[player.seatIndex] = newHand.length;
-
-      if (trick.cards.length === 4) {
-        const resolution = courtPieceEngine.resolveTrick(room.gameState);
-        room.gameState.teamDealScores[resolution.winnerTeamId].tricksWon += 1;
-        room.gameState.completedTricks.push(resolution.completedTrick);
-
-        if (resolution.isDealComplete && resolution.dealWinnerTeamId !== undefined) {
-          room.gameState.matchScores[resolution.dealWinnerTeamId] += 1;
-          room.gameState.dealWinnerTeamId = resolution.dealWinnerTeamId;
-
-          if (resolution.isMatchComplete) {
-            room.status = 'match_complete';
-            room.gameState.status = 'match_complete';
-            room.gameState.matchWinnerTeamId = resolution.matchWinnerTeamId;
-            room.gameState.lastMoveNotice = `MATCH COMPLETE! Team ${
-              resolution.matchWinnerTeamId === 0 ? 'Alpha' : 'Beta'
-            } wins the match!`;
-          } else {
-            room.status = 'deal_complete';
-            room.gameState.status = 'deal_complete';
-            room.gameState.lastMoveNotice = `DEAL WON! Team ${
-              resolution.dealWinnerTeamId === 0 ? 'Alpha' : 'Beta'
-            } won 7 tricks and earns 1 match point!`;
-          }
-        } else {
-          const winnerPlayer = room.seats[resolution.winnerSeatIndex];
-          room.gameState.currentTrick = { cards: [] };
-          room.gameState.currentTurnSeatIndex = resolution.nextLeadSeatIndex;
-          room.gameState.lastMoveNotice = `${winnerPlayer?.nickname || 'Player'} won the trick and leads next.`;
-        }
-      } else {
-        room.gameState.currentTurnSeatIndex = ((player.seatIndex + 1) % 4) as SeatIndex;
-        const nextPlayer = room.seats[room.gameState.currentTurnSeatIndex];
-        room.gameState.lastMoveNotice = `${player.nickname} played ${card.rank} of ${card.suit}. Turn: ${nextPlayer?.nickname}.`;
-      }
+      const newHand = applyCard(room, player, card, privateCards);
+      transaction.update(handRef, { cards: newHand, updatedAt: serverTimestamp() });
 
       transaction.update(roomRef, {
         status: room.status,
-        gameState: room.gameState,
+        gameState: { ...room.gameState, turnStartedAt: serverTimestamp() },
         version: room.version + 1,
         updatedAt: serverTimestamp(),
       });
     });
+  }
+
+  public async updatePresence(roomId: string, playerId: string, connectionId: string, online: boolean): Promise<void> {
+    const roomRef = doc(this.getDb(), 'rooms', roomId);
+    await runTransaction(this.getDb(), async transaction => {
+      const snapshot = await transaction.get(roomRef);
+      if (!snapshot.exists()) return;
+      const room = snapshot.data() as RoomDocument;
+      const player = room.seats.find(seat => seat?.id === playerId);
+      if (!player) return;
+      const now = Date.now();
+      const connections = Object.fromEntries(Object.entries(player.connections ?? {}).filter(([,seen]) => now - seen < PRESENCE_STALE_MS));
+      if (online) connections[connectionId] = now; else delete connections[connectionId];
+      player.connections = connections;
+      player.isConnected = Object.keys(connections).length > 0;
+      if (online) player.lastSeen = now;
+      transaction.update(roomRef, { seats: room.seats });
+    });
+  }
+
+  public async expireTurn(roomId: string, requesterId: string, expectedTurn: string): Promise<boolean> {
+    const firestore = this.getDb();
+    const roomRef = doc(firestore, 'rooms', roomId);
+    const snapshot = await getDoc(roomRef);
+    const room = snapshot.data() as RoomDocument | undefined;
+    if (!room?.gameState || turnKey(room.gameState) !== expectedTurn || !isTurnExpired(room.gameState)) return false;
+    const player = room.seats[room.gameState.currentTurnSeatIndex];
+    if (player?.id === requesterId) {
+      return runTransaction(firestore, async transaction => {
+        const fresh = await transaction.get(roomRef);
+        const stateRoom = fresh.data() as RoomDocument;
+        if (!stateRoom.gameState || turnKey(stateRoom.gameState) !== expectedTurn || !isTurnExpired(stateRoom.gameState)) return false;
+        const handRef = doc(firestore, 'rooms', roomId, 'privateHands', requesterId);
+        const hand = await transaction.get(handRef);
+        const cards = (hand.data()?.cards ?? []) as Card[];
+        const card = lowestLegalCard(stateRoom.gameState, cards);
+        if (!card) return false;
+        const nextHand = applyCard(stateRoom, player, card, cards);
+        transaction.update(handRef, { cards: nextHand, updatedAt: serverTimestamp() });
+        transaction.update(roomRef, { status: stateRoom.status, gameState: { ...stateRoom.gameState, turnStartedAt: serverTimestamp() }, version: stateRoom.version + 1, updatedAt: serverTimestamp() });
+        return true;
+      });
+    }
+    // Only the server can read an absent player's private hand.
+    const [{ getFunctions, httpsCallable, connectFunctionsEmulator }, { app }] = await Promise.all([import('firebase/functions'), import('./firebaseConfig')]);
+    if (!app) throw new Error('Cloud connection unavailable.');
+    const functions = getFunctions(app);
+    if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') connectFunctionsEmulator(functions, import.meta.env.VITE_FIREBASE_EMULATOR_HOST || 'localhost', 5001);
+    const result = await httpsCallable<{ roomId: string; expectedTurn: string }, { played: boolean }>(functions, 'expireTurn')({ roomId, expectedTurn });
+    return result.data.played;
   }
 
   public async startNextDeal(roomId: string, callerId: string): Promise<void> {
@@ -404,6 +399,7 @@ export class FirestoreRoomService {
       room.gameState.teamDealScores = [{ tricksWon: 0 }, { tricksWon: 0 }];
       room.gameState.remainingCardCounts = [5, 5, 5, 5];
       room.gameState.status = 'trump_selection';
+    delete room.gameState.turnStartedAt;
       room.gameState.dealWinnerTeamId = undefined;
       room.gameState.lastMoveNotice = `Deal ${room.gameState.currentDeal}: Trump selection phase. ${callerPlayer.nickname} is choosing trump.`;
 
@@ -438,7 +434,7 @@ export class FirestoreRoomService {
     });
   }
 
-  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
+  public async sendReaction(roomId: string, callerId: string, reaction: ReactionInput): Promise<void> {
     const firestore = this.getDb();
     const roomRef = doc(firestore, 'rooms', roomId);
 
@@ -456,7 +452,7 @@ export class FirestoreRoomService {
           id: 'rx_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36),
           playerId: callerId,
           seatIndex: player.seatIndex,
-          emoji,
+          ...normalizeReaction(reaction),
           timestamp: Date.now(),
         };
 
@@ -466,7 +462,7 @@ export class FirestoreRoomService {
         });
       });
     } catch (e) {
-      console.warn('[FirestoreRoomService] Failed to send reaction:', e);
+      throw e;
     }
   }
 

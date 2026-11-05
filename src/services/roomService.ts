@@ -1,148 +1,81 @@
-import { isFirebaseConfigured } from './firebaseSettings';
-import { localSimulator } from './localSimulator';
-// Keep the cloud SDK out of local-table startup; modules are cached after the first request.
-const loadCloudService = () => import('./firestoreService').then(module => module.firestoreService);
+import type { ReactionInput } from '../types/game';
+import type { PlayerProfile } from '../types/game';
+// Online-only transport; the cloud module is loaded once and reused.
+const loadCloudService = async () => {
+  const module = await import('./firestoreService');
+  if (typeof window !== 'undefined') await (await import('./authService')).authService.getOnlineIdentity();
+  return module.firestoreService;
+};
 let cloudService: ReturnType<typeof loadCloudService> | undefined;
 const getCloudService = () => cloudService ??= loadCloudService().catch(error => { cloudService = undefined; throw error; });
 import type { RoomDocument, Card, SeatIndex, Suit, ChatMessage } from '../types/game';
 
 class RoomService {
-  private useSimulator(): boolean {
-    if (typeof window !== 'undefined') {
-      const forceSim = localStorage.getItem('codebase_force_simulator');
-      if (forceSim === 'true') return true;
-      if (forceSim === 'false') return false;
-    }
-    return !isFirebaseConfigured();
+  public async createRoom(host: PlayerProfile): Promise<RoomDocument> {
+    return (await getCloudService()).createRoom(host);
   }
 
-  public getBackendMode(): 'firebase' | 'simulator' {
-    return this.useSimulator() ? 'simulator' : 'firebase';
-  }
-
-  public setForceSimulator(enabled: boolean | null): void {
-    if (enabled === null) {
-      localStorage.removeItem('codebase_force_simulator');
-    } else {
-      localStorage.setItem('codebase_force_simulator', enabled ? 'true' : 'false');
-    }
-    window.location.reload();
-  }
-
-  public async createRoom(host: { id: string; nickname: string }): Promise<RoomDocument> {
-    if (this.useSimulator()) {
-      return localSimulator.createRoom(host);
-    }
-    try {
-      return await (await getCloudService()).createRoom(host);
-    } catch (err) {
-      console.warn('[RoomService] Firebase createRoom failed, falling back to local simulator:', err);
-      return localSimulator.createRoom(host);
-    }
-  }
-
-  public async joinRoom(
-    roomCode: string,
-    player: { id: string; nickname: string }
-  ): Promise<{ room: RoomDocument; seatIndex: SeatIndex }> {
-    if (this.useSimulator()) {
-      return localSimulator.joinRoom(roomCode, player);
-    }
-    try {
-      return await (await getCloudService()).joinRoom(roomCode, player);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (
-        msg.includes('permission') ||
-        msg.includes('insufficient') ||
-        msg.includes('not found') ||
-        msg.includes('offline')
-      ) {
-        console.warn('[RoomService] Firebase joinRoom error, checking local simulator:', err);
-        return await localSimulator.joinRoom(roomCode, player);
-      }
-      throw err;
-    }
+  public async joinRoom(roomCode: string, player: PlayerProfile): Promise<{ room: RoomDocument; seatIndex: SeatIndex }> {
+    return (await getCloudService()).joinRoom(roomCode, player);
   }
 
   public async startGame(roomId: string, callerId: string): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.startGame(roomId, callerId);
-    }
     return await (await getCloudService()).startGame(roomId, callerId);
   }
 
   public async selectTrump(roomId: string, callerId: string, suit: Suit): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.selectTrump(roomId, callerId, suit);
-    }
     return await (await getCloudService()).selectTrump(roomId, callerId, suit);
   }
 
   public async playCard(roomId: string, callerId: string, card: Card): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.playCard(roomId, callerId, card);
-    }
     return await (await getCloudService()).playCard(roomId, callerId, card);
   }
 
+  public async updatePresence(roomId: string, playerId: string, connectionId: string, online: boolean): Promise<void> {
+    return (await getCloudService()).updatePresence(roomId, playerId, connectionId, online);
+  }
+
+  public async expireTurn(roomId: string, requesterId: string, expectedTurn: string): Promise<boolean> {
+    return (await getCloudService()).expireTurn(roomId, requesterId, expectedTurn);
+  }
+
   public async startNextDeal(roomId: string, callerId: string): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.startNextDeal(roomId, callerId);
-    }
     return await (await getCloudService()).startNextDeal(roomId, callerId);
   }
 
   public async requestRematch(roomId: string, callerId: string): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.requestRematch(roomId, callerId);
-    }
     return await (await getCloudService()).requestRematch(roomId, callerId);
   }
 
-  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.sendReaction(roomId, callerId, emoji);
-    }
-    return (await getCloudService()).sendReaction(roomId, callerId, emoji);
+  public async sendReaction(roomId: string, callerId: string, reaction: ReactionInput): Promise<void> {
+    return (await getCloudService()).sendReaction(roomId, callerId, reaction);
   }
 
   public async sendChatMessage(
     roomId: string,
     message: Omit<ChatMessage, 'id' | 'timestamp'>
   ): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.sendChatMessage(roomId, message);
-    }
     return (await getCloudService()).sendChatMessage(roomId, message);
   }
 
   public async leaveRoom(roomId: string, callerId: string): Promise<void> {
-    if (this.useSimulator()) {
-      return localSimulator.leaveRoom(roomId, callerId);
-    }
     return await (await getCloudService()).leaveRoom(roomId, callerId);
   }
 
   public subscribeRoom(roomId: string, callback: (room: RoomDocument | null) => void): () => void {
-    if (this.useSimulator()) {
-      return localSimulator.subscribeRoom(roomId, callback);
-    }
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
-    let localUnsubscribe: (() => void) | undefined;
     getCloudService().then(service => {
       if (cancelled) return;
       unsubscribe = service.subscribeRoom(roomId, room => {
         if (cancelled) return;
-        if (room) callback(room);
-        else if (!localUnsubscribe) localUnsubscribe = localSimulator.subscribeRoom(roomId, callback);
+        callback(room);
       });
     }).catch(error => {
       console.warn('[RoomService] Could not load room connection:', error);
       if (!cancelled) callback(null);
     });
-    return () => { cancelled = true; unsubscribe?.(); localUnsubscribe?.(); };
+    return () => { cancelled = true; unsubscribe?.(); };
   }
 
   public subscribePrivateHand(
@@ -150,9 +83,6 @@ class RoomService {
     playerId: string,
     callback: (cards: Card[], initialCards?: Card[]) => void
   ): () => void {
-    if (this.useSimulator()) {
-      return localSimulator.subscribePrivateHand(roomId, playerId, callback);
-    }
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     getCloudService().then(service => {

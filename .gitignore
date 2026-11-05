@@ -30,3 +30,10 @@ dist-ssr
 .taste-skill/
 .playwright-cli/
 output/playwright/
+
+# Shared engine copied into the Cloud Functions build
+functions/src/shared/
+functions/lib/
+
+# Original avatar sources; optimized JPEGs are shipped instead.
+public/people/

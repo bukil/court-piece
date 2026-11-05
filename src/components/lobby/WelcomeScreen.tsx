@@ -1,9 +1,11 @@
+import { AvatarPicker } from './AvatarPicker';
 import React, { useState } from 'react';
 import { CardView } from '../table/CardView';
-import { roomService } from '../../services/roomService';
 
 interface WelcomeScreenProps {
   currentNickname: string;
+  currentAvatarId: string;
+  onSelectAvatar: (avatarId: string) => void;
   onUpdateNickname: (name: string) => void;
   onCreateGame: () => Promise<void>;
   onJoinGame: (roomCode: string) => Promise<void>;
@@ -12,18 +14,19 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   currentNickname,
+  currentAvatarId,
+  onSelectAvatar,
   onUpdateNickname,
   onCreateGame,
   onJoinGame,
   onOpenRulesModal,
 }) => {
   const [nickname, setNickname] = useState(currentNickname);
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCode] = useState(() => new URLSearchParams(window.location.search).get('room')?.toUpperCase().slice(0,3) ?? '');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const backendMode = roomService.getBackendMode();
 
   const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.slice(0, 16);
@@ -51,8 +54,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     e.preventDefault();
     setErrorMessage(null);
     const code = roomCode.trim().toUpperCase();
-    if (!code) {
-      setErrorMessage('Enter the 6-character room code');
+    if (!/^[A-Z0-9]{3}$/.test(code)) {
+      setErrorMessage('Enter the 3-character room code');
       return;
     }
     if (!nickname.trim()) {
@@ -85,13 +88,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               Rules
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => roomService.setForceSimulator(backendMode === 'firebase')}
-            className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer px-2.5 py-1 rounded-full bg-neutral-900 border border-neutral-800"
-          >
-            {backendMode === 'firebase' ? 'Online tables' : 'Local tables'}
-          </button>
+
         </div>
       </header>
 
@@ -104,15 +101,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <div><CardView card={{ id: 'welcome-a', rank: 'A', value: 14, suit: 'clubs' }} size="lg" /></div>
           </div>
           <h1>Good company.<br />Great hands.</h1>
-          <p>A round of Court Piece, a familiar rivalry.<br />Bring your people. We’ll deal the cards.</p>
-          <div className="welcome-facts"><span>4 players</span><span>2 teams</span><span>First to 7</span></div>
+          <p>Bring your people. We’ll deal.</p>
         </div>
-        <div className="welcome-form"><h2>Take your seat</h2><p>Create a private table or join your friends.</p>
+        <div className="welcome-form"><h2>Take your seat</h2>
           {errorMessage && (
             <div className="mb-4 text-xs text-rose-400 text-center font-medium">
               {errorMessage}
             </div>
           )}
+
+          <AvatarPicker selectedId={currentAvatarId} onSelect={onSelectAvatar} />
 
           {/* Nickname input */}
           <div className="mb-4">
@@ -137,23 +135,28 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             onClick={handleCreate}
             className="w-full py-2.5 rounded-xl bg-white text-black font-medium text-xs sm:text-sm hover:bg-neutral-200 active:scale-98 transition-transform transition-colors cursor-pointer disabled:opacity-40"
           >
-            {isCreating ? 'Creating room...' : 'Create a table'}
+            {isCreating ? 'Creating table…' : 'Create a table'}
           </button>
 
           <div className="my-5 text-center text-xs text-neutral-500 font-medium">
-            Have an invite? Join their table.
+            Have a code?
           </div>
 
           {/* Join Form */}
           <form onSubmit={handleJoin} className="flex gap-2">
             <input
-              aria-label="6-character room code"
+              aria-label="3-character room code"
               id="roomCode"
               type="text"
               value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
               placeholder="Room code"
-              maxLength={6}
+              maxLength={3}
+              minLength={3}
+              pattern="[A-Z0-9]{3}"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               className="flex-1 px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-white text-center font-medium text-sm placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition-colors uppercase"
             />
             <button
@@ -167,9 +170,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
       </main>
 
-      <footer className="welcome-footer">
-        Made for a little friendly competition.
-      </footer>
+
     </div>
   );
 };

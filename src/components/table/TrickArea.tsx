@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { soundService } from '../../services/soundService';
-import type { Trick, RelativePosition } from '../../types/game';
+import type { Trick, RelativePosition, Suit } from '../../types/game';
 import { CardView } from './CardView';
 import { SUIT_SYMBOLS } from '../../game-engine/utils/deck';
 
 interface TrickAreaProps {
   trick: Trick;
+  trumpSuit?: Suit | null;
   lastCompletedTrick?: Trick;
   getRelativePosition: (seatIndex: number) => RelativePosition;
   seats: { nickname: string; seatIndex: number }[];
 }
-export const TrickArea: React.FC<TrickAreaProps> = ({ trick, lastCompletedTrick, getRelativePosition, seats }) => {
+export const TrickArea: React.FC<TrickAreaProps> = ({ trick, lastCompletedTrick, getRelativePosition, seats, trumpSuit }) => {
   const completedKey = lastCompletedTrick?.cards.map(c => c.card.id).join(',');
   const previousKey = useRef(completedKey);
   const completedRef = useRef(lastCompletedTrick);
@@ -34,7 +35,7 @@ export const TrickArea: React.FC<TrickAreaProps> = ({ trick, lastCompletedTrick,
     {(['top', 'left', 'right', 'bottom'] as RelativePosition[]).map(position => {
       const play = displayed.cards.find(p => getRelativePosition(p.seatIndex) === position);
       return <div key={position} className={`trick-slot trick-${position}`}>
-        {play ? <div key={play.card.id} className={`card-throw throw-${position}`} title={`${seats.find(s => s.seatIndex === play.seatIndex)?.nickname ?? 'Player'} played ${play.card.rank} of ${play.card.suit}`}><CardView card={play.card} size="sm" /></div>
+        {play ? <div key={play.card.id} className={`card-throw throw-${position}`} title={`${seats.find(s => s.seatIndex === play.seatIndex)?.nickname ?? 'Player'} played ${play.card.rank} of ${play.card.suit}`}><CardView card={play.card} isTrump={play.card.suit === trumpSuit} size="sm" /></div>
         : <div className="empty-card-slot" aria-hidden="true" />}
       </div>;
     })}

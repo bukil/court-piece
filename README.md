@@ -2,7 +2,7 @@
 
 CODEBASE is a complete, fast, and responsive real-time multiplayer web application for playing **Court Piece (Single Sir)** with exactly four players in two fixed teams of two.
 
-Built with **React 19**, **TypeScript**, **Vite 8**, **Tailwind CSS v4**, and **Firebase (Cloud Firestore & Authentication)**, with full offline/local multi-tab simulator support via the browser's `BroadcastChannel` API.
+Built with **React 19**, **TypeScript**, **Vite 8**, **Tailwind CSS v4**, and **Firebase (Cloud Firestore & Authentication)**, with online tables through Firebase. The local simulator is retained only for automated testing.
 
 ---
 
@@ -53,7 +53,7 @@ npm run dev
 ```
 
 1. Open `http://localhost:5173` in **Tab 1**: Enter a nickname and click **Create New Game Room**.
-2. Copy the 6-character room code (e.g., `CB7842`).
+2. Copy the 3-character room code (e.g., `A7K`).
 3. Open 3 additional browser tabs at `http://localhost:5173`.
 4. Enter nicknames for Players 2, 3, and 4, paste the room code, and click **Join Room**.
 5. When all 4 seats are occupied, Tab 1 (Host) clicks **Start Game**.
@@ -82,7 +82,7 @@ Seat 1 (West) ◄─── Table Center ───► Seat 3 (East)
 ```
 rooms/{roomId}                          [Public Room Document]
   ├── id: string
-  ├── code: string                      (6-character join code)
+  ├── code: string                      (3-character join code)
   ├── status: 'waiting' | 'starting' | 'trump_selection' | 'playing' | 'deal_complete' | 'match_complete'
   ├── hostPlayerId: string
   ├── seats: [
@@ -167,3 +167,29 @@ firebase deploy
 - **Audio Feedback**: Procedural Web Audio API sound synthesizer
 - **Testing**: Vitest 5
 - **Linter**: Oxlint
+
+## Avatar library, connection status, and turn clocks
+
+Players choose a supplied photo or a Noto emoji character before creating/joining a table. The `public/people` HEIC originals are preserved; browser thumbnails are generated into `public/avatars/people` and listed in `src/data/photoAvatars.ts`. To regenerate thumbnails, run `scripts/prepare-people-avatars.py` with Python, Pillow, and pillow-heif installed. There is no upload feature. The selected avatar ID is validated against the catalog and stored in the player's shared seat.
+
+New room codes are exactly three uppercase alphanumeric characters. Both backends check collisions; Firestore reserves a room document with the candidate code in a transaction. Invite links prefill onboarding instead of skipping avatar selection.
+
+Each browser tab maintains a separate connection heartbeat every ten seconds. A player is offline when no connection has reported within 25 seconds; closing one of two tabs does not disconnect the other. The table shows an online/offline dot and an animated active-player ring without role labels.
+
+Each playing turn has a shared 20-second start timestamp. The last seven seconds show a red ring and play a quiet double tick on the active player's device (respecting mute). At expiry, the lowest legal card is played, following the led suit when required. Chat, reactions, presence updates, and reloads do not restart the clock. Only the current player's private hand is read by that player's client. Auto-play for an absent player runs through the authenticated `expireTurn` Cloud Function, which reads the private hand server-side and rejects early, stale, or non-seated requests.
+
+The browser and Cloud Function share `applyCard` and the same game engine. `functions/scripts/sync-engine.mjs` copies the engine into the functions build before compilation.
+
+Before using offline-player auto-play in online rooms, deploy the callable backend:
+
+```sh
+npm --prefix functions ci
+npm --prefix functions test
+firebase deploy --only functions:expireTurn --project courtpiece-ab2f3
+```
+
+This requires Firebase CLI authentication and a Firebase project with Cloud Functions enabled. Normal player-owned auto-play and all local simulator behavior work without the callable backend. For local cloud testing, the Functions emulator is configured on port 5001.
+
+### GIF reactions
+
+Set `VITE_GIPHY_API_KEY` in `.env.local` for local development. For GitHub Pages, set the repository Actions secret with the same name before building. The browser calls GIPHY directly; only the selected GIF ID and title are shared with the table. Media URLs are resolved fresh, and GIF reactions disappear after five seconds. GIF search lives exclusively in the reaction picker. Attribution uses GIPHY’s official mark.

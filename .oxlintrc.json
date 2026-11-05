@@ -17,6 +17,8 @@
   "ignorePatterns": [
     ".agents/**",
     ".taste-skill/**",
-    "output/**"
+    "output/**",
+    "functions/lib/**",
+    "functions/src/shared/**"
   ]
 }

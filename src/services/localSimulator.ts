@@ -1,3 +1,11 @@
+import { normalizeReaction } from '../game-engine/reactions';
+import type { ReactionInput } from '../types/game';
+import { generateRoomCode } from '../game-engine/roomCode';
+import { PRESENCE_STALE_MS } from '../game-engine/turnClock';
+import { applyCard } from '../game-engine/court-piece/applyCard';
+import { isTurnExpired, lowestLegalCard, turnKey } from '../game-engine/turnClock';
+import type { PlayerProfile } from '../types/game';
+import { normalizeAvatarId } from '../data/avatarCatalog';
 import type {
   RoomDocument,
   Card,
@@ -5,7 +13,6 @@ import type {
   Player,
   PublicGameState,
   TeamId,
-  PlayedCard,
   Suit,
   ChatMessage,
 } from '../types/game';
@@ -153,22 +160,20 @@ export class LocalSimulatorService {
     listeners.forEach((cb) => cb(cardsToEmit, initHand));
   }
 
-  public generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
+  public generateRoomCode(): string { return generateRoomCode(); }
 
-  public async createRoom(host: { id: string; nickname: string }): Promise<RoomDocument> {
+  public async createRoom(host: PlayerProfile): Promise<RoomDocument> {
     const roomId = 'rm_' + Math.random().toString(36).substring(2, 9);
-    const code = this.generateRoomCode();
+    let code = this.generateRoomCode();
+    for (let attempt = 0; this.readRoomByCode(code); attempt++) {
+      if (attempt >= 100) throw new Error('No room codes available. Try again shortly.');
+      code = this.generateRoomCode();
+    }
 
     const hostPlayer: Player = {
       id: host.id,
       nickname: host.nickname,
+      avatarId: normalizeAvatarId(host.avatarId, host.id),
       seatIndex: 0,
       teamId: 0,
       isHost: true,
@@ -194,7 +199,9 @@ export class LocalSimulatorService {
     return newRoom;
   }
 
-  public async findRoomByCode(roomCode: string): Promise<RoomDocument | null> {
+  public async findRoomByCode(roomCode: string): Promise<RoomDocument | null> { return this.readRoomByCode(roomCode); }
+
+  private readRoomByCode(roomCode: string): RoomDocument | null {
     const upper = roomCode.trim().toUpperCase();
     for (let i = 0; i < this.storage.length; i++) {
       const key = this.storage.key(i);
@@ -214,7 +221,7 @@ export class LocalSimulatorService {
 
   public async joinRoom(
     roomCode: string,
-    player: { id: string; nickname: string }
+    player: PlayerProfile
   ): Promise<{ room: RoomDocument; seatIndex: SeatIndex }> {
     const room = await this.findRoomByCode(roomCode);
     if (!room) {
@@ -225,6 +232,7 @@ export class LocalSimulatorService {
     if (existingIndex !== -1) {
       const currentSeat = room.seats[existingIndex]!;
       currentSeat.nickname = player.nickname;
+      currentSeat.avatarId = normalizeAvatarId(player.avatarId ?? currentSeat.avatarId, player.id);
       currentSeat.isConnected = true;
       currentSeat.lastSeen = Date.now();
       this.saveRoomToStorage(room);
@@ -246,6 +254,7 @@ export class LocalSimulatorService {
     const newPlayer: Player = {
       id: player.id,
       nickname: player.nickname,
+      avatarId: normalizeAvatarId(player.avatarId, player.id),
       seatIndex: seatIdx,
       teamId,
       isHost: room.hostPlayerId === player.id,
@@ -349,6 +358,7 @@ export class LocalSimulatorService {
     // Update game state
     room.gameState.trumpSuit = suit;
     room.gameState.status = 'playing';
+    room.gameState.turnStartedAt = Date.now();
     room.status = 'playing';
     room.gameState.remainingCardCounts = [13, 13, 13, 13];
     room.gameState.currentTurnSeatIndex = room.gameState.trumpCallerSeatIndex;
@@ -379,82 +389,40 @@ export class LocalSimulatorService {
 
     const hand = this.getHandFromStorage(roomId, callerId);
 
-    // Authoritative move validation
-    const validation = courtPieceEngine.validateMove(
-      room.gameState,
-      hand,
-      player.seatIndex,
-      card
-    );
-
-    if (!validation.isValid) {
-      throw new Error(validation.reason || 'Illegal move.');
-    }
-
-    // Remove card from player's private hand
-    const newHand = hand.filter((c) => c.id !== card.id);
+    const newHand = applyCard(room, player, card, hand);
     this.saveHandToStorage(roomId, callerId, newHand);
-
-    room.gameState.remainingCardCounts[player.seatIndex] = newHand.length;
-
-    // Add card to current trick
-    const playedCard: PlayedCard = {
-      playerId: callerId,
-      seatIndex: player.seatIndex,
-      card,
-      playedAt: Date.now(),
-    };
-
-    const currentTrick = room.gameState.currentTrick;
-    if (!currentTrick.leadSuit) {
-      currentTrick.leadSuit = card.suit;
-    }
-    currentTrick.cards.push(playedCard);
-
-    // Check if 4 cards have been played in this trick
-    if (currentTrick.cards.length === 4) {
-      const resolution = courtPieceEngine.resolveTrick(room.gameState);
-
-      // Single Sir: trick collected immediately, team trick score updated
-      room.gameState.teamDealScores[resolution.winnerTeamId].tricksWon += 1;
-      room.gameState.completedTricks.push(resolution.completedTrick);
-
-      if (resolution.isDealComplete && resolution.dealWinnerTeamId !== undefined) {
-        // Award 1 match point to winning team
-        room.gameState.matchScores[resolution.dealWinnerTeamId] += 1;
-        room.gameState.dealWinnerTeamId = resolution.dealWinnerTeamId;
-
-        if (resolution.isMatchComplete) {
-          room.status = 'match_complete';
-          room.gameState.status = 'match_complete';
-          room.gameState.matchWinnerTeamId = resolution.matchWinnerTeamId;
-          const winningTeamName = resolution.matchWinnerTeamId === 0 ? 'Team Alpha' : 'Team Beta';
-          room.gameState.lastMoveNotice = `MATCH COMPLETE! ${winningTeamName} reached ${room.gameState.matchTarget} match points and wins the championship!`;
-        } else {
-          room.status = 'deal_complete';
-          room.gameState.status = 'deal_complete';
-          const winningTeamName = resolution.dealWinnerTeamId === 0 ? 'Team Alpha' : 'Team Beta';
-          room.gameState.lastMoveNotice = `DEAL WON! ${winningTeamName} reached 7 tricks and earns 1 match point!`;
-        }
-      } else {
-        // Prepare next trick
-        const winnerPlayer = room.seats[resolution.winnerSeatIndex];
-        room.gameState.currentTrick = { cards: [] };
-        room.gameState.currentTurnSeatIndex = resolution.nextLeadSeatIndex;
-        room.gameState.lastMoveNotice = `${winnerPlayer?.nickname || 'Player'} won the trick and leads next.`;
-      }
-    } else {
-      // Advance turn clockwise
-      room.gameState.currentTurnSeatIndex = ((player.seatIndex + 1) % 4) as SeatIndex;
-      const nextPlayer = room.seats[room.gameState.currentTurnSeatIndex];
-      room.gameState.lastMoveNotice = `${player.nickname} played ${card.rank} of ${card.suit}. Turn: ${nextPlayer?.nickname}.`;
-    }
 
     this.saveRoomToStorage(room);
     for (let s = 0; s < 4; s++) {
       const p = room.seats[s];
       if (p) this.notifyHandSubscribers(roomId, p.id);
     }
+  }
+
+  public async updatePresence(roomId: string, playerId: string, connectionId: string, online: boolean): Promise<void> {
+    const room = this.getRoomFromStorage(roomId);
+    const player = room?.seats.find(seat => seat?.id === playerId);
+    if (!room || !player) return;
+    const now = Date.now();
+    const connections = Object.fromEntries(Object.entries(player.connections ?? {}).filter(([,seen]) => now - seen < PRESENCE_STALE_MS));
+    if (online) connections[connectionId] = now; else delete connections[connectionId];
+    player.connections = connections;
+    player.isConnected = Object.keys(connections).length > 0;
+    if (online) player.lastSeen = now;
+    this.saveRoomToStorage(room);
+  }
+
+  public async expireTurn(roomId: string, _requesterId: string, expectedTurn: string): Promise<boolean> {
+    const room = this.getRoomFromStorage(roomId);
+    const state = room?.gameState;
+    if (!room || !state || state.status !== 'playing' || turnKey(state) !== expectedTurn || !isTurnExpired(state)) return false;
+    if (!room.seats.some(player => player?.id === _requesterId)) throw new Error('Player is not seated at this table.');
+    const player = room.seats[state.currentTurnSeatIndex];
+    if (!player) return false;
+    const card = lowestLegalCard(state, this.getHandFromStorage(roomId, player.id));
+    if (!card) return false;
+    await this.playCard(roomId, player.id, card);
+    return true;
   }
 
   /**
@@ -502,6 +470,7 @@ export class LocalSimulatorService {
     room.gameState.teamDealScores = [{ tricksWon: 0 }, { tricksWon: 0 }];
     room.gameState.remainingCardCounts = [5, 5, 5, 5];
     room.gameState.status = 'trump_selection';
+    delete room.gameState.turnStartedAt;
     room.gameState.dealWinnerTeamId = undefined;
     room.gameState.lastMoveNotice = `Deal ${room.gameState.currentDeal}: Trump selection phase. ${callerPlayer.nickname} is choosing trump.`;
 
@@ -533,7 +502,7 @@ export class LocalSimulatorService {
     }
   }
 
-  public async sendReaction(roomId: string, callerId: string, emoji: string): Promise<void> {
+  public async sendReaction(roomId: string, callerId: string, reaction: ReactionInput): Promise<void> {
     const room = this.getRoomFromStorage(roomId);
     if (!room || !room.gameState) return;
     const player = room.seats.find((s) => s?.id === callerId);
@@ -543,7 +512,7 @@ export class LocalSimulatorService {
       id: 'rx_' + Math.random().toString(36).substring(2, 8) + Date.now().toString(36),
       playerId: callerId,
       seatIndex: player.seatIndex,
-      emoji,
+      ...normalizeReaction(reaction),
       timestamp: Date.now(),
     };
     this.saveRoomToStorage(room);

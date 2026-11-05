@@ -1,3 +1,4 @@
+import { useRoomPresence, playerIsOnline } from '../../hooks/useRoomPresence';
 import React, { useState } from 'react';
 import type { RoomDocument } from '../../types/game';
 import { Avatar } from '../common/Avatar';
@@ -17,6 +18,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   onLeaveRoom,
   onOpenRulesModal,
 }) => {
+  const presenceNow = useRoomPresence(room.id, localPlayerId);
   const [isStarting, setIsStarting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {seatPlayer ? (
-                    <Avatar seed={seatPlayer.id} teamId={seatPlayer.teamId} size="sm" />
+                    <Avatar avatarId={seatPlayer.avatarId} seed={seatPlayer.id} teamId={seatPlayer.teamId} size="sm" />
                   ) : (
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-neutral-600 border border-dashed border-neutral-800">
                       {idx + 1}
@@ -143,7 +145,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
                 </div>
 
                 {seatPlayer && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span title={playerIsOnline(seatPlayer, presenceNow) ? 'Online' : 'Offline'} className={`lobby-connection ${playerIsOnline(seatPlayer, presenceNow) ? 'is-online' : 'is-offline'}`} />
                 )}
               </div>
             );

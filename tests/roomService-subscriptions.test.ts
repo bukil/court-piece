@@ -39,15 +39,15 @@ describe('deferred cloud subscriptions', () => {
     expect(mocks.stopHand).toHaveBeenCalledTimes(1);
   });
 
-  it('creates one local fallback listener and releases it with the cloud listener', async () => {
+  it('never falls back to a local table when the online room is missing', async () => {
     const stop = roomService.subscribeRoom('test-room', vi.fn());
     await vi.dynamicImportSettled();
     const callback = mocks.room.mock.calls[0][1];
     callback(null);
     callback(null);
-    expect(mocks.localRoom).toHaveBeenCalledTimes(1);
+    expect(mocks.localRoom).not.toHaveBeenCalled();
     stop();
-    expect(mocks.stopLocal).toHaveBeenCalledTimes(1);
+    expect(mocks.stopLocal).not.toHaveBeenCalled();
     expect(mocks.stopRoom).toHaveBeenCalledTimes(1);
   });
 });

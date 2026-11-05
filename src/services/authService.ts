@@ -1,3 +1,4 @@
+import { normalizeAvatarId } from '../data/avatarCatalog';
 import { isFirebaseConfigured } from './firebaseSettings';
 
 const LOCAL_STORAGE_PLAYER_ID_KEY = 'codebase_player_id';
@@ -16,10 +17,12 @@ export function generateRandomNickname(): string {
 export interface PlayerIdentity {
   id: string;
   nickname: string;
+  avatarId: string;
 }
 
 class AuthService {
   private currentIdentity: PlayerIdentity;
+  private cloudReady: Promise<void> | null = null;
   private listeners: Set<(identity: PlayerIdentity) => void> = new Set();
 
   constructor() {
@@ -38,32 +41,40 @@ class AuthService {
     this.currentIdentity = {
       id: savedId,
       nickname: savedNickname,
+      avatarId: normalizeAvatarId(localStorage.getItem('court_avatar_id') ?? undefined, savedId),
     };
 
-    // Local tables do not need to download or initialize the Firebase SDK.
-    if (isFirebaseConfigured() && localStorage.getItem('codebase_force_simulator') !== 'true') {
-      void this.initializeCloudAuth();
-    }
+    // Remove the retired local-table preference. Every table uses Firebase.
+    localStorage.removeItem('codebase_force_simulator');
+    void this.connect().catch(() => {});
+  }
+
+  private connect(): Promise<void> {
+    return this.cloudReady ??= this.initializeCloudAuth().catch(error => { this.cloudReady = null; throw error; });
   }
 
   private async initializeCloudAuth(): Promise<void> {
-    try {
-      const [{ auth }, { onAuthStateChanged, signInAnonymously }] = await Promise.all([
-        import('./firebaseConfig'), import('firebase/auth'),
-      ]);
-      if (!auth) return;
-      onAuthStateChanged(auth, user => {
-        if (user) {
-          this.currentIdentity = { id: user.uid, nickname: this.currentIdentity.nickname };
-          localStorage.setItem(LOCAL_STORAGE_PLAYER_ID_KEY, user.uid);
-          this.notify();
-        } else {
-          signInAnonymously(auth).catch(error => console.warn('[AuthService] Anonymous sign-in error, using local identity:', error));
-        }
-      });
-    } catch (error) {
-      console.warn('[AuthService] Could not initialize cloud authentication:', error);
-    }
+    if (!isFirebaseConfigured()) throw new Error('Online tables are not configured yet.');
+    const [{ auth }, { onAuthStateChanged, signInAnonymously }] = await Promise.all([
+      import('./firebaseConfig'), import('firebase/auth'),
+    ]);
+    if (!auth) throw new Error('Couldn’t connect to online tables. Try again.');
+    const user = auth.currentUser ?? (await signInAnonymously(auth)).user;
+    this.currentIdentity = { ...this.currentIdentity, id: user.uid };
+    localStorage.setItem(LOCAL_STORAGE_PLAYER_ID_KEY, user.uid);
+    this.notify();
+    onAuthStateChanged(auth, fresh => {
+      if (fresh && fresh.uid !== this.currentIdentity.id) {
+        this.currentIdentity = { ...this.currentIdentity, id: fresh.uid };
+        localStorage.setItem(LOCAL_STORAGE_PLAYER_ID_KEY, fresh.uid);
+        this.notify();
+      }
+    });
+  }
+
+  public async getOnlineIdentity(): Promise<PlayerIdentity> {
+    try { await this.connect(); return this.getIdentity(); }
+    catch { throw new Error('Couldn’t connect. Check your internet and try again.'); }
   }
 
   public getIdentity(): PlayerIdentity {
@@ -78,6 +89,13 @@ class AuthService {
       nickname: trimmed,
     };
     localStorage.setItem(LOCAL_STORAGE_NICKNAME_KEY, trimmed);
+    this.notify();
+  }
+
+  public setAvatar(avatarId: string): void {
+    const selected = normalizeAvatarId(avatarId, this.currentIdentity.id);
+    this.currentIdentity = { ...this.currentIdentity, avatarId: selected };
+    localStorage.setItem('court_avatar_id', selected);
     this.notify();
   }
 

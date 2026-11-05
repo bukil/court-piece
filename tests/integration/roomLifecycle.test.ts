@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { LocalSimulatorService } from '../../src/services/localSimulator';
 import type { Card } from '../../src/types/game';
 
@@ -15,7 +15,7 @@ describe('Room Lifecycle & Multiplayer Seating Integration', () => {
     const room = await sim.createRoom(host);
 
     expect(room.id).toBeDefined();
-    expect(room.code).toHaveLength(6);
+    expect(room.code).toHaveLength(3);
     expect(room.status).toBe('waiting');
     expect(room.hostPlayerId).toBe(host.id);
 
@@ -196,5 +196,45 @@ describe('Room Lifecycle & Multiplayer Seating Integration', () => {
     expect(updated?.messages?.[0].nickname).toBe('Alice');
     expect(updated?.messages?.[1].text).toBe('Have fun!');
     expect(updated?.messages?.[1].nickname).toBe('Bob');
+  });
+});
+
+// Added behavior is tested separately to retain the original room lifecycle coverage.
+describe('Short room codes, selected avatars, and connection sessions', () => {
+  let sim: LocalSimulatorService;
+  beforeEach(() => { sim = new LocalSimulatorService(); sim.clearAll(); });
+  it('keeps an explicitly selected photo in the shared seat and on reconnect', async () => {
+    const { PHOTO_AVATARS } = await import('../../src/data/photoAvatars');
+    const avatarId = PHOTO_AVATARS[0].id;
+    const room = await sim.createRoom({ id: 'photo-player', nickname: 'Maya', avatarId });
+    expect(room.seats[0]?.avatarId).toBe(avatarId);
+    const rejoined = await sim.joinRoom(room.code, { id: 'photo-player', nickname: 'Maya' });
+    expect(rejoined.room.seats[0]?.avatarId).toBe(avatarId);
+  });
+  it('does not accept arbitrary external URLs as avatars', async () => {
+    const room = await sim.createRoom({ id: 'p0', nickname: 'Maya', avatarId: 'https://example.com/upload.jpg' });
+    expect(room.seats[0]?.avatarId).toMatch(/^emoji-/);
+  });
+  it('retries a short-code collision instead of overwriting the existing room', async () => {
+    vi.spyOn(sim, 'generateRoomCode').mockReturnValueOnce('ABC').mockReturnValueOnce('ABC').mockReturnValueOnce('DEF');
+    const first = await sim.createRoom({ id: 'p0', nickname: 'Maya' });
+    const second = await sim.createRoom({ id: 'p1', nickname: 'Arjun' });
+    expect(first.code).toBe('ABC'); expect(second.code).toBe('DEF');
+    expect((await sim.findRoomByCode('ABC'))?.hostPlayerId).toBe('p0');
+  });
+  it('generates exactly three unambiguous alphanumeric characters', async () => {
+    for (let i = 0; i < 50; i++) expect(sim.generateRoomCode()).toMatch(/^[A-HJ-NP-Z2-9]{3}$/);
+  });
+  it('keeps a player online when one of two connections closes', async () => {
+    const room = await sim.createRoom({ id: 'p0', nickname: 'Maya' });
+    await sim.updatePresence(room.id, 'p0', 'tab-a', true);
+    await sim.updatePresence(room.id, 'p0', 'tab-b', true);
+    await sim.updatePresence(room.id, 'p0', 'tab-a', false);
+    let current = await sim.findRoomByCode(room.code);
+    expect(current?.seats[0]?.isConnected).toBe(true);
+    expect(Object.keys(current?.seats[0]?.connections ?? {})).toEqual(['tab-b']);
+    await sim.updatePresence(room.id, 'p0', 'tab-b', false);
+    current = await sim.findRoomByCode(room.code);
+    expect(current?.seats[0]?.isConnected).toBe(false);
   });
 });

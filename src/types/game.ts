@@ -13,7 +13,15 @@ export type TeamId = 0 | 1; // Team 0 = Seats 0 & 2 (Team Alpha); Team 1 = Seats
 
 export type RelativePosition = 'bottom' | 'left' | 'top' | 'right';
 
+export interface PlayerProfile {
+  id: string;
+  nickname: string;
+  avatarId?: string;
+}
+
 export interface Player {
+  avatarId?: string;
+  connections?: Record<string, number>;
   id: string;
   nickname: string;
   seatIndex: SeatIndex;
@@ -46,7 +54,11 @@ export interface Trick {
   winnerSeatIndex?: SeatIndex;
 }
 
+export interface GifReaction { type: 'gif'; id: string; title: string; }
+export type ReactionInput = string | GifReaction;
+
 export interface ReactionEvent {
+  gif?: GifReaction;
   id: string;
   playerId: string;
   seatIndex: SeatIndex;
@@ -64,6 +76,7 @@ export interface PublicGameState {
   trumpCallerSeatIndex: SeatIndex;
   trumpSuit: Suit | null;
   currentTurnSeatIndex: SeatIndex;
+  turnStartedAt?: number | { toMillis(): number };
   currentTrick: Trick;
   completedTricks: Trick[];
   teamDealScores: [TeamScore, TeamScore]; // Team 0 & Team 1 tricks in current deal
@@ -89,7 +102,7 @@ export interface ChatMessage {
 
 export interface RoomDocument {
   id: string;
-  code: string; // 6-char room code
+  code: string; // 3-character room code
   createdAt: number;
   updatedAt: number;
   status: RoomStatus;

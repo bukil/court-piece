@@ -7,6 +7,8 @@ import { WaitingLobby } from './components/lobby/WaitingLobby';
 import { GameTable } from './components/table/GameTable';
 import { GameResultsModal } from './components/results/GameResultsModal';
 import './App.css';
+import './game-layout.css';
+import './player-ui.css';
 import { RulesNoticeModal } from './components/common/RulesNoticeModal';
 
 const SESSION_ROOM_KEY = 'codebase_active_room_id';
@@ -32,27 +34,7 @@ export function App() {
       setIsInitializing(false);
     }, 1000);
 
-    // Support joining via URL e.g. ?room=CB7842
-    if (!activeRoomId && typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const urlCode = params.get('room');
-      if (urlCode) {
-        roomService
-          .joinRoom(urlCode, { id: identity.id, nickname: identity.nickname })
-          .then(({ room }) => {
-            setCurrentRoom(room);
-            sessionStorage.setItem(SESSION_ROOM_KEY, room.id);
-          })
-          .catch((err) => {
-            console.warn('[App] Auto-join from URL failed:', err);
-          })
-          .finally(() => {
-            clearTimeout(fallbackTimer);
-            setIsInitializing(false);
-          });
-        return () => clearTimeout(fallbackTimer);
-      }
-    }
+    // Invite links prefill onboarding so players can choose their avatar before joining.
 
     if (activeRoomId) {
       const unsub = roomService.subscribeRoom(activeRoomId, (room) => {
@@ -91,19 +73,15 @@ export function App() {
   };
 
   const handleCreateGame = async () => {
-    const room = await roomService.createRoom({
-      id: identity.id,
-      nickname: identity.nickname,
-    });
+    const onlineIdentity = await authService.getOnlineIdentity();
+    const room = await roomService.createRoom(onlineIdentity);
     setCurrentRoom(room);
     sessionStorage.setItem(SESSION_ROOM_KEY, room.id);
   };
 
   const handleJoinGame = async (roomCode: string) => {
-    const { room } = await roomService.joinRoom(roomCode, {
-      id: identity.id,
-      nickname: identity.nickname,
-    });
+    const onlineIdentity = await authService.getOnlineIdentity();
+    const { room } = await roomService.joinRoom(roomCode, onlineIdentity);
     setCurrentRoom(room);
     sessionStorage.setItem(SESSION_ROOM_KEY, room.id);
   };
@@ -170,6 +148,8 @@ export function App() {
       {!currentRoom && (
         <WelcomeScreen
           onOpenRulesModal={() => setRulesOpen(true)}
+          currentAvatarId={identity.avatarId}
+          onSelectAvatar={avatarId => authService.setAvatar(avatarId)}
           currentNickname={identity.nickname}
           onUpdateNickname={handleUpdateNickname}
           onCreateGame={handleCreateGame}
