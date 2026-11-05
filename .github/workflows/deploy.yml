@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      cancel_deployment:
+        description: 'Optional stuck Pages deployment SHA to cancel before publishing'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +17,7 @@ permissions:
 
 concurrency:
   group: 'pages'
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -43,6 +48,18 @@ jobs:
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
+
+      - name: Cancel explicitly requested stale Pages deployment
+        if: github.event_name == 'workflow_dispatch' && inputs.cancel_deployment != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STALE_DEPLOYMENT: ${{ inputs.cancel_deployment }}
+        run: |
+          if [[ ! "$STALE_DEPLOYMENT" =~ ^[a-fA-F0-9]{40}$ ]]; then
+            echo 'Expected a 40-character deployment SHA.' >&2
+            exit 1
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/deployments/$STALE_DEPLOYMENT/cancel"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
