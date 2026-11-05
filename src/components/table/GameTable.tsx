@@ -1,10 +1,11 @@
+import { useCardPlay } from '../../hooks/useCardPlay';
 import { reactionDuration } from '../../game-engine/reactions';
 import type { ReactionEvent, ReactionInput } from '../../types/game';
 import { useRoomPresence, playerIsOnline } from '../../hooks/useRoomPresence';
 import { useTurnClock } from '../../hooks/useTurnClock';
 import { SUIT_SYMBOLS } from '../../game-engine/utils/deck';
 import { useGameViewport } from '../../hooks/useGameViewport';
-import React, { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   RoomDocument,
   Card,
@@ -43,7 +44,6 @@ export const GameTable: React.FC<GameTableProps> = ({
   const [initialCards, setInitialCards] = useState<Card[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isMuted, setIsMuted] = useState(soundService.getIsMuted());
-  const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeReactions, setActiveReactions] = useState<Record<number, ReactionEvent | null>>({});
   const reactionTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -203,19 +203,11 @@ export const GameTable: React.FC<GameTableProps> = ({
     });
   };
 
-  const handlePlayCard = useCallback((card: Card) => {
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        soundService.playCardPlay();
-        await roomService.playCard(room.id, localPlayerId, card);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Invalid move';
-        setActionError(msg);
-        setTimeout(() => setActionError(null), 3000);
-      }
-    });
-  }, [room.id, localPlayerId]);
+  const reportPlayError = useCallback((message: string) => setActionError(message), []);
+  const cardPlay = useCardPlay(room, hand, localPlayerId, reportPlayError);
+  const handlePlayCard = (card: Card, origin?: import('../../hooks/useCardPlay').CardPlayOrigin) => {
+    setActionError(null); cardPlay.play(card, origin);
+  };
 
   const renderSeat = (seat: { player: Player | null; seatIndex: number }, position: RelativePosition, teammate: boolean, local = false) => (
     <SeatView player={seat.player} seatIndex={seat.seatIndex} position={position} isTeammate={teammate} isLocalPlayer={local} isOnline={(seat.player?.id !== localPlayerId || navigator.onLine) && playerIsOnline(seat.player, presenceNow)} seconds={clock.seconds} warning={clock.warning}
@@ -250,14 +242,14 @@ export const GameTable: React.FC<GameTableProps> = ({
         <div className="felt-table" aria-hidden="true" />
         <div className="table-seat table-seat-top">{renderSeat(topSeat, 'top', true)}</div>
         <div className="table-seat table-seat-left">{renderSeat(leftSeat, 'left', false)}</div>
-        <div className="table-center">{gameState && <TrickArea trumpSuit={gameState.trumpSuit} lastCompletedTrick={gameState.completedTricks.at(-1)} trick={gameState.currentTrick} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
+        <div className="table-center">{gameState && <TrickArea trumpSuit={gameState.trumpSuit} lastCompletedTrick={gameState.completedTricks.at(-1)} trick={cardPlay.trick ?? gameState.currentTrick} localOrigin={cardPlay.pending?.origin} localCardId={cardPlay.pending?.play.card.id} getRelativePosition={getRelativePosition} seats={room.seats.filter((s): s is Player => s !== null)} />}</div>
         <div className="table-seat table-seat-right">{renderSeat(rightSeat, 'right', false)}</div>
         <div className="table-seat table-seat-bottom">{renderSeat(bottomSeat, 'bottom', false, true)}</div>
       </main>
       <section className="hand-dock" aria-label="Your cards">
         <span className="sr-only" role="status">{isMyTurn && gameState?.status === 'playing' ? clock.warning ? 'Your turn. Seven seconds or less remaining.' : 'Your turn.' : ''}</span>
         {clock.error && <span className="clock-connection-error" role="status">{clock.error}</span>}
-        <HandView reactionControl={<ReactionPicker placement="hand" onSendReaction={handleSendReaction} />} cards={displayHand} isMyTurn={isMyTurn && gameState?.status === 'playing'} leadSuit={gameState?.currentTrick.leadSuit} trumpSuit={gameState?.trumpSuit} onPlayCard={handlePlayCard} isLoading={isPending} />
+        <HandView reactionControl={<ReactionPicker placement="hand" onSendReaction={handleSendReaction} />} cards={isTrumpSelection ? displayHand : cardPlay.hand} isMyTurn={isMyTurn && gameState?.status === 'playing'} leadSuit={gameState?.currentTrick.leadSuit} trumpSuit={gameState?.trumpSuit} onPlayCard={handlePlayCard} isLoading={cardPlay.isPending} />
       </section>
 
       </div>

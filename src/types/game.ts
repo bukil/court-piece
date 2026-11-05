@@ -101,6 +101,8 @@ export interface ChatMessage {
 }
 
 export interface RoomDocument {
+  lastActiveAt?: number | { toMillis(): number };
+  cleanupStartedAt?: number | { toMillis(): number };
   id: string;
   code: string; // 3-character room code
   createdAt: number;

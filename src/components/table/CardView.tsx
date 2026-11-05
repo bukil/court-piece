@@ -9,7 +9,7 @@ interface CardViewProps {
   isDisabled?: boolean;
   isTrump?: boolean;
   size?: 'sm' | 'md' | 'lg';
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const CardView: React.FC<CardViewProps> = React.memo(({

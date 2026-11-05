@@ -23,6 +23,16 @@ describe('Deck and Shuffle utilities', () => {
     }
   });
 
+  it('uses the same spades, hearts, clubs, diamonds order everywhere without mutating the hand', () => {
+    const cards = createStandardDeck().reverse();
+    const original = cards.map(card => card.id);
+    const sorted = sortHand(cards);
+    expect(SUITS).toEqual(['spades','hearts','clubs','diamonds']);
+    expect([...new Set(sorted.map(card => card.suit))]).toEqual(SUITS);
+    expect(sorted.slice(0,13).map(card => card.value)).toEqual([2,3,4,5,6,7,8,9,10,11,12,13,14]);
+    expect(cards.map(card => card.id)).toEqual(original);
+  });
+
   it('secureShuffle produces a permutation containing all 52 unique cards', () => {
     const original = createStandardDeck();
     const shuffled = secureShuffle(original);

@@ -1,6 +1,7 @@
 import type { Card, Suit, Rank } from '../../types/game';
 
-export const SUITS: Suit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
+// One display order for suit choices, trump previews, and every player's hand.
+export const SUITS: Suit[] = ['spades', 'hearts', 'clubs', 'diamonds'];
 export const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 export const RANK_VALUES: Record<Rank, number> = {
@@ -49,16 +50,9 @@ export function createStandardDeck(): Card[] {
 }
 
 export function sortHand(cards: Card[]): Card[] {
-  const suitOrder: Record<Suit, number> = {
-    spades: 0,
-    hearts: 1,
-    clubs: 2,
-    diamonds: 3,
-  };
-
   return [...cards].sort((a, b) => {
-    if (suitOrder[a.suit] !== suitOrder[b.suit]) {
-      return suitOrder[a.suit] - suitOrder[b.suit];
+    if (a.suit !== b.suit) {
+      return SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
     }
     return a.value - b.value;
   });

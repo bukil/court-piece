@@ -175,3 +175,20 @@
 .avatar-choice { width: 100%; height: auto; overflow: visible; }
 .avatar-choice > img { aspect-ratio: 1; height: auto; }
 @media(max-width:560px) { .avatar-choices { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+/* Pointer motion has no interpolation; only a cancelled drag eases back into the hand. */
+.hand-card { touch-action: pan-x; transition: none; }
+.hand-card.is-draggable, .hand-card.is-draggable button { touch-action: none; cursor: grab; }
+.card-gesture { translate: var(--drag-x,0) var(--drag-y,0); rotate: var(--drag-rotate,0deg); transition: translate .16s ease-out, rotate .16s ease-out; -webkit-user-select: none; user-select: none; }
+.hand-card.is-dragging { z-index: 30; }
+.hand-card.is-dragging .card-gesture { transition: none; will-change: translate, rotate; }
+.hand-card.is-dragging .playing-card { cursor: grabbing; transform: none; transition: none; }
+.player-hand .playing-card.is-disabled, .player-hand .playing-card.is-trump.is-disabled { opacity: .62; filter: saturate(.35); background: #bdc9bd; cursor: default; }
+.player-hand .playing-card.is-playable { opacity: 1; filter: none; }
+.local-card-throw { animation: none; }
+/* Every GIF sits beside its player rather than covering their portrait or cards. */
+.table-seat .seat-gif-reaction { top: 50%; bottom: auto; left: calc(100% + 10px); right: auto; margin: 0; translate: 0 -50%; width: clamp(88px,12vw,144px); height: clamp(70px,9vw,112px); }
+.table-seat-right .seat-gif-reaction { left: auto; right: calc(100% + 10px); }
+@media(max-width:560px) { .table-seat .seat-gif-reaction { width: 88px; height: 72px; padding: 4px; left: calc(100% + 6px); } .table-seat-right .seat-gif-reaction { left: auto; right: calc(100% + 6px); } .gif-reaction-visual .giphy-credit { width: 72px; height: 12px; } }
+@media(prefers-reduced-motion:reduce) { .card-gesture { transition: none; } }
+.player-hand .playing-card.is-playable:hover { transform: none; }
+.hand-card.is-dragging .playing-card.is-selected { transform: translateY(-20px); }

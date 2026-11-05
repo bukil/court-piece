@@ -118,6 +118,7 @@ export class FirestoreRoomService {
       const freshRoom = { ...freshSnap.data(), id: freshSnap.id } as RoomDocument;
 
       const existingSeat = freshRoom.seats.findIndex((s) => s?.id === player.id);
+      if (freshRoom.status === 'abandoned' || freshRoom.cleanupStartedAt) throw new Error('This table has expired. Create a new table.');
       if (existingSeat !== -1) {
         freshRoom.seats[existingSeat]!.nickname = player.nickname;
         freshRoom.seats[existingSeat]!.avatarId = normalizeAvatarId(player.avatarId ?? freshRoom.seats[existingSeat]!.avatarId, player.id);
@@ -307,14 +308,14 @@ export class FirestoreRoomService {
       if (!snapshot.exists()) return;
       const room = snapshot.data() as RoomDocument;
       const player = room.seats.find(seat => seat?.id === playerId);
-      if (!player) return;
+      if (!player || room.status === 'abandoned' || room.cleanupStartedAt) return;
       const now = Date.now();
       const connections = Object.fromEntries(Object.entries(player.connections ?? {}).filter(([,seen]) => now - seen < PRESENCE_STALE_MS));
       if (online) connections[connectionId] = now; else delete connections[connectionId];
       player.connections = connections;
       player.isConnected = Object.keys(connections).length > 0;
       if (online) player.lastSeen = now;
-      transaction.update(roomRef, { seats: room.seats });
+      transaction.update(roomRef, { seats: room.seats, ...(online ? { lastActiveAt: serverTimestamp() } : {}) });
     });
   }
 

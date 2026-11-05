@@ -17,7 +17,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.hostPlayerId == request.auth.uid;
 
       // Authenticated users can update room state (claiming a seat, playing a card, syncing state)
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && !('cleanupStartedAt' in resource.data);
 
       // Disallow client-side deletion to protect match persistence
       allow delete: if false;
@@ -29,12 +29,13 @@ service cloud.firestore {
         allow read: if isAuthenticated() && request.auth.uid == playerId;
 
         // Writes are allowed for authenticated players (dealing cards, updating hand on card play)
-        allow write: if isAuthenticated();
+        allow write: if isAuthenticated() && !('cleanupStartedAt' in get(/databases/$(database)/documents/rooms/$(roomId)).data);
       }
 
       // Server Data (Stores the 32-card reserve deck during trump selection phase)
       match /serverData/{docId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && !('cleanupStartedAt' in get(/databases/$(database)/documents/rooms/$(roomId)).data);
       }
     }
   }

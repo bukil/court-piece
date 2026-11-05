@@ -193,3 +193,17 @@ This requires Firebase CLI authentication and a Firebase project with Cloud Func
 ### GIF reactions
 
 Set `VITE_GIPHY_API_KEY` in `.env.local` for local development. For GitHub Pages, set the repository Actions secret with the same name before building. The browser calls GIPHY directly; only the selected GIF ID and title are shared with the table. Media URLs are resolved fresh, and GIF reactions disappear after five seconds. GIF search lives exclusively in the reaction picker. Attribution uses GIPHY’s official mark.
+
+### Inactive-room cleanup
+
+`cleanupRooms` runs every 15 minutes and removes rooms after 30 minutes without a move, message, reconnect, or presence heartbeat. A browser closing does not have to send a final request. Cleanup rechecks activity in a transaction, marks the room abandoned, deletes all subcollections (including private hands), then releases the room code. Interrupted cleanup can retry while the code stays reserved.
+
+Deploy with an authenticated Firebase CLI and a Blaze-enabled project:
+
+```sh
+npx firebase-tools deploy --only functions:cleanupRooms,firestore:rules --project courtpiece-ab2f3
+```
+
+Spark does not support deploying the scheduled function. Until the project is upgraded and this deployment completes, automatic room cleanup is not active.
+
+Hands and trump choices share the display order spades, hearts, clubs, diamonds, with ranks ascending. A submitted card is shown immediately and reconciled against both the public table and private-hand snapshots; rejected submissions restore the card.

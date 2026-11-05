@@ -1,3 +1,5 @@
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { cleanupExpiredRooms } from './roomCleanup';
 import { applyCard } from './shared/game-engine/court-piece/applyCard';
 import { isTurnExpired, lowestLegalCard, turnKey } from './shared/game-engine/turnClock';
 import type { RoomDocument } from './shared/types/game';
@@ -232,4 +234,10 @@ export const expireTurn = onCall(async request => {
     transaction.update(roomRef, { status: room.status, gameState: { ...room.gameState, turnStartedAt: admin.firestore.FieldValue.serverTimestamp() }, version: room.version + 1, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     return { played: true };
   });
+});
+
+/** Closed tabs cannot reliably send a final request; clean up from the server instead. */
+export const cleanupRooms = onSchedule({ schedule: 'every 15 minutes', timeZone: 'UTC', maxInstances: 1, concurrency: 1, timeoutSeconds: 540, retryCount: 3 }, async () => {
+  const deleted = await cleanupExpiredRooms(db);
+  console.info('Expired rooms removed:', deleted);
 });
